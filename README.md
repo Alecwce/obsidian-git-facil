@@ -1,6 +1,6 @@
-# Git Fácil - Plugin para Obsidian
+# GitFacil - Plugin para Obsidian
 
-**Git Fácil** es un plugin ultraliviano y sencillo para Obsidian que te permite respaldar y sincronizar tus notas con Git en un solo clic, sin complicaciones ni configuraciones complejas.
+**GitFacil** es un plugin ultraliviano y sencillo para Obsidian que te permite respaldar y sincronizar tus notas con Git en un solo clic, sin complicaciones ni configuraciones complejas.
 
 ---
 
@@ -28,7 +28,7 @@ Para utilizar este plugin en tu equipo de escritorio (Windows, macOS o Linux), a
 2. Abre los ajustes de BRAT y selecciona **"Add Beta plugin"**.
 3. Ingresa la URL del repositorio:
    `https://github.com/Alecwce/obsidian-git-facil`
-4. Haz clic en **Add Plugin** y activa **Git Fácil** en la lista de plugins instalados.
+4. Haz clic en **Add Plugin** y activa **GitFacil** en la lista de plugins instalados.
 
 ### Método 2: Instalación Manual
 
@@ -36,7 +36,7 @@ Para utilizar este plugin en tu equipo de escritorio (Windows, macOS o Linux), a
 2. Crea la carpeta del plugin en tu bóveda:
    `TU_BOVEDA/.obsidian/plugins/git-facil/`
 3. Coloca los tres archivos descargados dentro de esa carpeta.
-4. Reinicia Obsidian o recarga los plugins y activa **Git Fácil**.
+4. Reinicia Obsidian o recarga los plugins y activa **GitFacil**.
 
 ---
 
@@ -44,14 +44,14 @@ Para utilizar este plugin en tu equipo de escritorio (Windows, macOS o Linux), a
 
 - **Icono en la barra lateral:** Haz clic en el icono 🚀 situado en la barra lateral izquierda para ejecutar la sincronización.
 - **Paleta de comandos:** Presiona `Ctrl + P` (o `Cmd + P` en macOS) y busca el comando:
-  `Git Fácil: Commit y Push`
+  `GitFacil: Commit y Push`
 - **Sincronización Automática (Auto-sync):** Activa el Auto-sync desde los ajustes del plugin para que tus notas se respalden automáticamente cada N minutos.
 
 ---
 
 ## ⚙️ Ajustes
 
-Accede a `Ajustes` -> `Git Fácil`:
+Accede a `Ajustes` -> `GitFacil`:
 
 - **Plantilla del mensaje de commit:** Personaliza el mensaje de commit. Utiliza la etiqueta `{fecha}` para insertar automáticamente la fecha y hora actual (Ejemplo: `📝 notas {fecha}`).
 - **Auto-sync:** Activa o desactiva la sincronización periódica automática.

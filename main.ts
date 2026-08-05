@@ -42,14 +42,14 @@ export default class GitFacilPlugin extends Plugin {
 	private syncIntervalId: number | null = null;
 
 	override async onload() {
-		console.log("Cargando plugin Git Fácil");
+		console.log("Cargando plugin GitFacil");
 		await this.loadSettings();
 
 		const executeCommitAndPush = async () => {
 			await this.handleCommitAndPush();
 		};
 
-		this.addRibbonIcon("rocket", "Git Fácil", executeCommitAndPush);
+		this.addRibbonIcon("rocket", "GitFacil", executeCommitAndPush);
 
 		this.registerView(
 			GIT_STATUS_VIEW_TYPE,
@@ -62,13 +62,13 @@ export default class GitFacilPlugin extends Plugin {
 
 		this.addCommand({
 			id: "commit-and-push",
-			name: "Git Fácil: Commit y Push",
+			name: "GitFacil: Commit y Push",
 			callback: executeCommitAndPush,
 		});
 
 		this.addCommand({
 			id: "open-git-status-view",
-			name: "Git Fácil: Abrir panel de Estado de Git",
+			name: "GitFacil: Abrir panel de Estado de Git",
 			callback: async () => {
 				await this.activateView();
 			},
@@ -79,7 +79,7 @@ export default class GitFacilPlugin extends Plugin {
 	}
 
 	override onunload() {
-		console.log("Desinstalando plugin Git Fácil");
+		console.log("Desinstalando plugin GitFacil");
 	}
 
 	async loadSettings() {
@@ -336,7 +336,7 @@ class SetupWizardModal extends Modal {
 		contentEl.addClass("git-facil-wizard");
 
 		contentEl.createEl("h2", {
-			text: "🪄 Asistente de configuración de Git Fácil",
+			text: "🪄 Asistente de configuración de GitFacil",
 		});
 		contentEl.createEl("p", {
 			text: "Configura tu bóveda paso a paso sin usar comandos ni la terminal.",
@@ -447,7 +447,7 @@ class GitFacilSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		containerEl.createEl("h2", { text: "Configuración de Git Fácil" });
+		containerEl.createEl("h2", { text: "Configuración de GitFacil" });
 
 		new Setting(containerEl)
 			.setName("Asistente de configuración")
