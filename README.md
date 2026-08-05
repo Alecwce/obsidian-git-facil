@@ -34,7 +34,7 @@ Para utilizar este plugin en tu equipo de escritorio (Windows, macOS o Linux), a
 
 1. Ve a la sección de [Releases](https://github.com/Alecwce/obsidian-git-facil/releases) y descarga `main.js`, `manifest.json` y `styles.css`.
 2. Crea la carpeta del plugin en tu bóveda:
-   `TU_BOVEDA/.obsidian/plugins/obsidian-git-facil/`
+   `TU_BOVEDA/.obsidian/plugins/git-facil/`
 3. Coloca los tres archivos descargados dentro de esa carpeta.
 4. Reinicia Obsidian o recarga los plugins y activa **Git Fácil**.
 

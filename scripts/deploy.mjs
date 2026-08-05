@@ -2,8 +2,7 @@ import { copyFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import process from "node:process";
 
-const DEST_DIR =
-	"D:\\z\\OBS\\MI CEREBRO II\\.obsidian\\plugins\\obsidian-git-facil";
+const DEST_DIR = "D:\\z\\OBS\\MI CEREBRO II\\.obsidian\\plugins\\git-facil";
 const FILES_TO_COPY = ["main.js", "manifest.json", "styles.css"];
 
 async function deploy() {
