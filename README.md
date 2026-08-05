@@ -1,74 +1,64 @@
-# GitFacil - Plugin para Obsidian
+# GitFacil - Obsidian Plugin
 
-**GitFacil** es un plugin ultraliviano y sencillo para Obsidian que te permite respaldar y sincronizar tus notas con Git en un solo clic, sin complicaciones ni configuraciones complejas.
-
----
-
-## 📋 Requisitos Previos
-
-Para utilizar este plugin en tu equipo de escritorio (Windows, macOS o Linux), asegúrate de cumplir con los siguientes requisitos:
-
-1. **Tener Git instalado:** Si aún no lo tienes, descárgalo e instálalo desde [git-scm.com](https://git-scm.com).
-2. **Inicializar tu bóveda como repositorio Git:** Abre la terminal en la carpeta raíz de tu bóveda y ejecuta:
-   ```bash
-   git init
-   ```
-3. **Configurar un repositorio remoto (remote):** Vincula tu repositorio local a GitHub (o GitLab/Bitbucket):
-   ```bash
-   git remote add origin https://github.com/TU_USUARIO/TU_REPOSITTORIO.git
-   ```
+**GitFacil** is an ultra-lightweight and simple Git backup plugin for Obsidian. / **GitFacil** es un plugin ultraliviano y sencillo para Obsidian que te permite respaldar y sincronizar tus notas con Git en un solo clic, sin complicaciones ni configuraciones complejas.
 
 ---
 
-## 🚀 Instalación
+## 📋 Prerequisites / Requisitos
 
-### Método 1: Con BRAT (Recomendado)
-
-1. Instala el plugin **Obsidian BRAT** desde la comunidad de plugins.
-2. Abre los ajustes de BRAT y selecciona **"Add Beta plugin"**.
-3. Ingresa la URL del repositorio:
-   `https://github.com/Alecwce/obsidian-git-facil`
-4. Haz clic en **Add Plugin** y activa **GitFacil** en la lista de plugins instalados.
-
-### Método 2: Instalación Manual
-
-1. Ve a la sección de [Releases](https://github.com/Alecwce/obsidian-git-facil/releases) y descarga `main.js`, `manifest.json` y `styles.css`.
-2. Crea la carpeta del plugin en tu bóveda:
-   `TU_BOVEDA/.obsidian/plugins/git-facil/`
-3. Coloca los tres archivos descargados dentro de esa carpeta.
-4. Reinicia Obsidian o recarga los plugins y activa **GitFacil**.
+1. **Git installed / Tener Git instalado:** Download from [git-scm.com](https://git-scm.com).
+2. **Git repository initialized / Repositorio inicializado:** Run `git init` in your vault root folder.
+3. **Remote repository configured / Repositorio remoto:** Run `git remote add origin <URL>`.
 
 ---
 
-## 💡 Modo de Uso
+## Installation / Instalación
 
-- **Icono en la barra lateral:** Haz clic en el icono 🚀 situado en la barra lateral izquierda para ejecutar la sincronización.
-- **Paleta de comandos:** Presiona `Ctrl + P` (o `Cmd + P` en macOS) y busca el comando:
-  `GitFacil: Commit y Push`
-- **Sincronización Automática (Auto-sync):** Activa el Auto-sync desde los ajustes del plugin para que tus notas se respalden automáticamente cada N minutos.
+### Option 1: Community Plugin Directory (Recommended)
+1. Open Obsidian **Settings** -> **Community plugins**.
+2. Search for **GitFacil** and click **Install**.
+3. Enable the plugin.
+
+### Option 2: Via BRAT (Beta Tester)
+1. Install **Obsidian BRAT** from community plugins.
+2. Open BRAT settings -> **Add Beta plugin**.
+3. Enter `https://github.com/Alecwce/obsidian-git-facil`.
+4. Click **Add Plugin** and enable **GitFacil**.
+
+### Option 3: Manual Installation
+1. Download `main.js`, `manifest.json`, and `styles.css` from [Releases](https://github.com/Alecwce/obsidian-git-facil/releases).
+2. Create folder `YOUR_VAULT/.obsidian/plugins/git-facil/`.
+3. Copy the downloaded files into that folder and reload plugins.
 
 ---
 
-## ⚙️ Ajustes
+## Usage / Modo de Uso
 
-Accede a `Ajustes` -> `GitFacil`:
-
-- **Plantilla del mensaje de commit:** Personaliza el mensaje de commit. Utiliza la etiqueta `{fecha}` para insertar automáticamente la fecha y hora actual (Ejemplo: `📝 notas {fecha}`).
-- **Auto-sync:** Activa o desactiva la sincronización periódica automática.
-- **Intervalo de Auto-sync:** Define cada cuántos minutos se ejecutará el respaldo automático.
+- **🚀 One-click Ribbon Icon:** Click the rocket icon 🚀 in the left ribbon to commit and push changes immediately.
+- **📊 Git Status Side Panel:** Open the side panel (icon `git-compare`) to view modified files, select checkboxes, pull changes, or commit selected files.
+- **🪄 Setup Wizard:** Click `🪄 Configurar mi bóveda` in plugin settings for a 3-step zero-terminal guided setup.
+- **🔄 Auto-sync:** Enable Auto-sync in settings to backup your vault automatically every N minutes.
+- **Command Palette:** Search `GitFacil: Commit y Push` using `Ctrl+P` / `Cmd+P`.
 
 ---
 
-## 🛠️ Solución de Problemas
+## Settings / Ajustes
 
-| Mensaje de Error | Causa | Solución |
+- **Commit Message Template / Plantilla:** Custom message template using `{fecha}` (e.g. `📝 notas {fecha}`).
+- **Auto-sync Toggle & Interval:** Enable automatic background backups every N minutes.
+
+---
+
+## Troubleshooting / Solución de Problemas
+
+| Error Notice | Cause / Causa | Solution / Solución |
 | :--- | :--- | :--- |
-| `❌ No se encontró Git. Descárgalo de https://git-scm.com` | Git no está instalado o no se encuentra en el PATH. | Instala Git desde [git-scm.com](https://git-scm.com) y reinicia Obsidian. |
-| `❌ Tu bóveda no es un repositorio Git.` | La carpeta de la bóveda no tiene un repositorio inicializado. | Abre la terminal en tu bóveda y ejecuta `git init`. |
-| `❌ No hay remote. Ejecuta: git remote add origin <URL>` | No se ha agregado un servidor remoto para subir los cambios. | Ejecuta `git remote add origin <URL>` en tu terminal. |
+| `❌ No se encontró Git` | Git not found in PATH | Install Git from [git-scm.com](https://git-scm.com) |
+| `❌ Tu bóveda no es un repositorio Git` | Vault not initialized | Run `git init` or use Setup Wizard |
+| `❌ No hay remote` | No remote repository | Run `git remote add origin <URL>` |
 
 ---
 
-## 📜 Licencia
+## License
 
-[MIT License](LICENSE) - Creado por Alex Lazo.
+[MIT License](LICENSE) - Created by Alex Lazo.
