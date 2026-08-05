@@ -1,22 +1,29 @@
 import {
 	type App,
+	ItemView,
 	Modal,
 	Notice,
 	Plugin,
 	PluginSettingTab,
 	Setting,
+	type WorkspaceLeaf,
 } from "obsidian";
 import {
 	checkGitStatusPorcelain,
+	commitAndPushSelectedFiles,
 	getCommitMessage,
 	getGitVersion,
 	hasGitRemote,
 	initGitRepo,
 	isGitInstalled,
 	isGitRepo,
+	parseGitStatusPorcelain,
+	pullGitChanges,
 	runGit,
 	setupRemoteAndFirstCommit,
 } from "./gitHelper";
+
+export const GIT_STATUS_VIEW_TYPE = "git-facil-status-view";
 
 export interface GitFacilSettings {
 	commitMessageTemplate: string;
@@ -44,10 +51,27 @@ export default class GitFacilPlugin extends Plugin {
 
 		this.addRibbonIcon("rocket", "Git Fácil", executeCommitAndPush);
 
+		this.registerView(
+			GIT_STATUS_VIEW_TYPE,
+			(leaf) => new GitStatusView(leaf, this),
+		);
+
+		this.addRibbonIcon("git-compare", "Estado de Git", async () => {
+			await this.activateView();
+		});
+
 		this.addCommand({
 			id: "commit-and-push",
 			name: "Git Fácil: Commit y Push",
 			callback: executeCommitAndPush,
+		});
+
+		this.addCommand({
+			id: "open-git-status-view",
+			name: "Git Fácil: Abrir panel de Estado de Git",
+			callback: async () => {
+				await this.activateView();
+			},
 		});
 
 		this.addSettingTab(new GitFacilSettingTab(this.app, this));
@@ -83,6 +107,26 @@ export default class GitFacilPlugin extends Plugin {
 					void this.handleCommitAndPush(true);
 				}, intervalMs),
 			);
+		}
+	}
+
+	async activateView() {
+		const { workspace } = this.app;
+		let leaf: WorkspaceLeaf | null = null;
+		const leaves = workspace.getLeavesOfType(GIT_STATUS_VIEW_TYPE);
+
+		if (leaves.length > 0) {
+			leaf = leaves[0];
+		} else {
+			leaf = workspace.getRightLeaf(false);
+			await leaf?.setViewState({
+				type: GIT_STATUS_VIEW_TYPE,
+				active: true,
+			});
+		}
+
+		if (leaf) {
+			workspace.revealLeaf(leaf);
 		}
 	}
 
@@ -139,6 +183,141 @@ export default class GitFacilPlugin extends Plugin {
 			const message = error instanceof Error ? error.message : String(error);
 			new Notice(`❌ Error: ${message}`);
 		}
+	}
+}
+
+export class GitStatusView extends ItemView {
+	private plugin: GitFacilPlugin;
+	private selectedFiles: Set<string> = new Set();
+
+	constructor(leaf: WorkspaceLeaf, plugin: GitFacilPlugin) {
+		super(leaf);
+		this.plugin = plugin;
+	}
+
+	getViewType(): string {
+		return GIT_STATUS_VIEW_TYPE;
+	}
+
+	getDisplayText(): string {
+		return "Estado de Git";
+	}
+
+	override getIcon(): string {
+		return "git-compare";
+	}
+
+	override async onOpen() {
+		await this.refreshView();
+	}
+
+	async refreshView() {
+		const { containerEl } = this;
+		containerEl.empty();
+		containerEl.addClass("git-facil-status-view");
+
+		const header = containerEl.createDiv({ cls: "status-view-header" });
+		header.createEl("h3", { text: "📊 Estado de Git" });
+
+		const controls = containerEl.createDiv({ cls: "status-view-actions" });
+
+		const btnRefresh = controls.createEl("button", {
+			text: "🔄 Actualizar lista",
+		});
+		btnRefresh.addEventListener("click", async () => {
+			await this.refreshView();
+		});
+
+		const btnPull = controls.createEl("button", {
+			text: "⬇️ Bajar cambios (Pull)",
+		});
+		btnPull.addEventListener("click", async () => {
+			const basePath = this.getBasePath();
+			if (!basePath) return;
+			new Notice("Bajando cambios...");
+			const res = await pullGitChanges(basePath);
+			new Notice(res.message);
+			await this.refreshView();
+		});
+
+		const basePath = this.getBasePath();
+		if (!basePath) {
+			containerEl.createDiv({
+				text: "❌ No se pudo obtener la ruta de la bóveda",
+				cls: "wizard-error",
+			});
+			return;
+		}
+
+		const changedFiles = await parseGitStatusPorcelain(basePath);
+
+		if (changedFiles.length === 0) {
+			const emptyState = containerEl.createDiv({ cls: "status-empty-state" });
+			emptyState.createEl("h2", { text: "Todo limpio ✅" });
+			emptyState.createEl("p", {
+				text: "No hay cambios pendientes por guardar o subir.",
+			});
+			return;
+		}
+
+		// Seleccionar todos por defecto
+		this.selectedFiles = new Set(changedFiles.map((f) => f.path));
+
+		const btnCommitSelected = containerEl.createEl("button", {
+			text: "🚀 Commit y push de lo marcado",
+			cls: "mod-cta status-commit-btn",
+		});
+		btnCommitSelected.addEventListener("click", async () => {
+			const filesToCommit = Array.from(this.selectedFiles);
+			if (filesToCommit.length === 0) {
+				new Notice("❌ Selecciona al menos un archivo.");
+				return;
+			}
+			new Notice("Comitiendo archivos marcados...");
+			const msg = getCommitMessage(this.plugin.settings.commitMessageTemplate);
+			const res = await commitAndPushSelectedFiles(
+				basePath,
+				filesToCommit,
+				msg,
+			);
+			new Notice(res.message);
+			await this.refreshView();
+		});
+
+		const fileListContainer = containerEl.createDiv({
+			cls: "status-file-list",
+		});
+
+		for (const file of changedFiles) {
+			const fileRow = fileListContainer.createDiv({ cls: "status-file-row" });
+
+			const checkbox = fileRow.createEl("input", {
+				type: "checkbox",
+			});
+			checkbox.checked = this.selectedFiles.has(file.path);
+			checkbox.addEventListener("change", () => {
+				if (checkbox.checked) {
+					this.selectedFiles.add(file.path);
+				} else {
+					this.selectedFiles.delete(file.path);
+				}
+			});
+
+			fileRow.createEl("span", {
+				text: file.status || "?",
+				cls: `status-tag status-tag-${file.status}`,
+			});
+
+			fileRow.createEl("span", {
+				text: file.path,
+				cls: "status-file-path",
+			});
+		}
+	}
+
+	private getBasePath(): string {
+		const adapter = this.app.vault.adapter as { getBasePath?: () => string };
+		return adapter.getBasePath?.() ?? "";
 	}
 }
 

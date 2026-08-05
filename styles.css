@@ -33,3 +33,59 @@
 	width: 100%;
 	margin-bottom: 12px;
 }
+
+/* Panel de Estado de Git */
+.git-facil-status-view {
+	padding: 12px;
+}
+
+.git-facil-status-view .status-view-header h3 {
+	margin-top: 0;
+	margin-bottom: 12px;
+}
+
+.git-facil-status-view .status-view-actions {
+	display: flex;
+	gap: 8px;
+	margin-bottom: 12px;
+	flex-wrap: wrap;
+}
+
+.git-facil-status-view .status-commit-btn {
+	width: 100%;
+	margin-bottom: 14px;
+}
+
+.git-facil-status-view .status-empty-state {
+	text-align: center;
+	padding: 30px 10px;
+	color: var(--text-muted);
+}
+
+.git-facil-status-view .status-file-list {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.git-facil-status-view .status-file-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 8px;
+	border-radius: 4px;
+	background-color: var(--background-secondary);
+}
+
+.git-facil-status-view .status-tag {
+	font-weight: bold;
+	font-family: var(--font-monospace);
+	padding: 2px 6px;
+	border-radius: 3px;
+	background-color: var(--background-modifier-border);
+}
+
+.git-facil-status-view .status-file-path {
+	font-size: 0.9em;
+	word-break: break-all;
+}
