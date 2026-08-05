@@ -130,7 +130,7 @@ export default class GitFacilPlugin extends Plugin {
 		}
 
 		if (leaf) {
-			void workspace.revealLeaf(leaf);
+			this.app.workspace.setActiveLeaf(leaf, true);
 		}
 	}
 
