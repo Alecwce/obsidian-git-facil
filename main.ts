@@ -1,11 +1,21 @@
-import { type App, Notice, Plugin, PluginSettingTab, Setting } from "obsidian";
+import {
+	type App,
+	Modal,
+	Notice,
+	Plugin,
+	PluginSettingTab,
+	Setting,
+} from "obsidian";
 import {
 	checkGitStatusPorcelain,
 	getCommitMessage,
+	getGitVersion,
 	hasGitRemote,
+	initGitRepo,
 	isGitInstalled,
 	isGitRepo,
 	runGit,
+	setupRemoteAndFirstCommit,
 } from "./gitHelper";
 
 export interface GitFacilSettings {
@@ -132,6 +142,120 @@ export default class GitFacilPlugin extends Plugin {
 	}
 }
 
+class SetupWizardModal extends Modal {
+	private basePath: string;
+	private remoteUrl = "";
+
+	constructor(app: App, basePath: string) {
+		super(app);
+		this.basePath = basePath;
+	}
+
+	override onOpen() {
+		const { contentEl } = this;
+		contentEl.empty();
+		contentEl.addClass("git-facil-wizard");
+
+		contentEl.createEl("h2", {
+			text: "🪄 Asistente de configuración de Git Fácil",
+		});
+		contentEl.createEl("p", {
+			text: "Configura tu bóveda paso a paso sin usar comandos ni la terminal.",
+		});
+
+		// --- PASO 1 ---
+		const step1Container = contentEl.createDiv({ cls: "wizard-step" });
+		step1Container.createEl("h3", {
+			text: "PASO 1: Comprobar si tienes Git instalado",
+		});
+		const step1Result = step1Container.createDiv({ cls: "wizard-result" });
+
+		const btn1 = step1Container.createEl("button", {
+			text: "Comprobar Git",
+			cls: "mod-cta",
+		});
+		btn1.addEventListener("click", async () => {
+			step1Result.setText("Comprobando...");
+			step1Result.className = "wizard-result";
+			const res = await getGitVersion();
+			if (res.success) {
+				step1Result.setText(`✅ Git instalado (${res.version})`);
+				step1Result.addClass("wizard-success");
+			} else {
+				step1Result.empty();
+				step1Result.addClass("wizard-error");
+				step1Result.createSpan({
+					text: "❌ Git no encontrado. Descárgalo desde ",
+				});
+				const link = step1Result.createEl("a", {
+					text: "git-scm.com",
+					href: "https://git-scm.com",
+				});
+				link.target = "_blank";
+			}
+		});
+
+		// --- PASO 2 ---
+		const step2Container = contentEl.createDiv({ cls: "wizard-step" });
+		step2Container.createEl("h3", {
+			text: "PASO 2: Preparar tu bóveda para respaldos",
+		});
+		const step2Result = step2Container.createDiv({ cls: "wizard-result" });
+
+		const btn2 = step2Container.createEl("button", {
+			text: "Crear repositorio",
+			cls: "mod-cta",
+		});
+		btn2.addEventListener("click", async () => {
+			step2Result.setText("Creando repositorio...");
+			step2Result.className = "wizard-result";
+			const res = await initGitRepo(this.basePath);
+			step2Result.setText(res.message);
+			step2Result.addClass(res.success ? "wizard-success" : "wizard-error");
+		});
+
+		// --- PASO 3 ---
+		const step3Container = contentEl.createDiv({ cls: "wizard-step" });
+		step3Container.createEl("h3", { text: "PASO 3: Conectar con GitHub" });
+		step3Container.createEl("p", {
+			text: "Pega la dirección de tu repositorio de GitHub (ejemplo: https://github.com/usuario/repo.git):",
+		});
+
+		const inputEl = step3Container.createEl("input", {
+			type: "text",
+			placeholder: "https://github.com/tu-usuario/tu-repositorio.git",
+			cls: "wizard-input",
+		});
+		inputEl.addEventListener("input", (e) => {
+			this.remoteUrl = (e.target as HTMLInputElement).value;
+		});
+
+		const step3Result = step3Container.createDiv({ cls: "wizard-result" });
+
+		const btn3 = step3Container.createEl("button", {
+			text: "Conectar y hacer primer commit",
+			cls: "mod-cta",
+		});
+		btn3.addEventListener("click", async () => {
+			step3Result.setText("Conectando y subiendo tus notas...");
+			step3Result.className = "wizard-result";
+			const commitMsg = getCommitMessage();
+			const res = await setupRemoteAndFirstCommit(
+				this.basePath,
+				this.remoteUrl,
+				commitMsg,
+			);
+			step3Result.setText(res.message);
+			step3Result.addClass(res.success ? "wizard-success" : "wizard-error");
+		});
+	}
+
+	override onClose() {
+		const { contentEl } = this;
+		contentEl.empty();
+	}
+}
+
 class GitFacilSettingTab extends PluginSettingTab {
 	plugin: GitFacilPlugin;
 
@@ -145,6 +269,24 @@ class GitFacilSettingTab extends PluginSettingTab {
 		containerEl.empty();
 
 		containerEl.createEl("h2", { text: "Configuración de Git Fácil" });
+
+		new Setting(containerEl)
+			.setName("Asistente de configuración")
+			.setDesc(
+				"Configura tu bóveda con Git paso a paso sin usar comandos ni la terminal.",
+			)
+			.addButton((button) =>
+				button
+					.setButtonText("🪄 Configurar mi bóveda")
+					.setCta()
+					.onClick(() => {
+						const adapter = this.app.vault.adapter as {
+							getBasePath?: () => string;
+						};
+						const basePath = adapter.getBasePath?.() ?? "";
+						new SetupWizardModal(this.app, basePath).open();
+					}),
+			);
 
 		new Setting(containerEl)
 			.setName("Plantilla del mensaje de commit")

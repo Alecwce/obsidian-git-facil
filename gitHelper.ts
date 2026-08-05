@@ -27,6 +27,18 @@ export async function isGitInstalled(): Promise<boolean> {
 	}
 }
 
+export async function getGitVersion(): Promise<{
+	success: boolean;
+	version?: string;
+}> {
+	try {
+		const { stdout } = await execFileAsync("git", ["--version"]);
+		return { success: true, version: stdout.trim() };
+	} catch {
+		return { success: false };
+	}
+}
+
 export async function isGitRepo(cwd: string): Promise<boolean> {
 	try {
 		await execFileAsync("git", ["rev-parse", "--is-inside-work-tree"], { cwd });
@@ -36,12 +48,76 @@ export async function isGitRepo(cwd: string): Promise<boolean> {
 	}
 }
 
+export async function initGitRepo(
+	cwd: string,
+): Promise<{ success: boolean; message: string }> {
+	try {
+		const isRepo = await isGitRepo(cwd);
+		if (isRepo) {
+			return { success: true, message: "Ya es un repositorio Git ✅" };
+		}
+		await execFileAsync("git", ["init", "-b", "main"], { cwd });
+		return { success: true, message: "Repositorio Git creado exitosamente ✅" };
+	} catch (error) {
+		const msg = error instanceof Error ? error.message : String(error);
+		return { success: false, message: `❌ Error al crear repositorio: ${msg}` };
+	}
+}
+
 export async function hasGitRemote(cwd: string): Promise<boolean> {
 	try {
 		const { stdout } = await execFileAsync("git", ["remote"], { cwd });
 		return stdout.trim().length > 0;
 	} catch {
 		return false;
+	}
+}
+
+export async function setupRemoteAndFirstCommit(
+	cwd: string,
+	remoteUrl: string,
+	commitMessage: string,
+): Promise<{ success: boolean; message: string }> {
+	const trimmedUrl = remoteUrl.trim();
+	if (!trimmedUrl) {
+		return {
+			success: false,
+			message: "❌ Por favor ingresa la URL de tu repositorio de GitHub.",
+		};
+	}
+
+	try {
+		const remoteExists = await hasGitRemote(cwd);
+		if (remoteExists) {
+			await execFileAsync("git", ["remote", "set-url", "origin", trimmedUrl], {
+				cwd,
+			});
+		} else {
+			await execFileAsync("git", ["remote", "add", "origin", trimmedUrl], {
+				cwd,
+			});
+		}
+
+		await execFileAsync("git", ["add", "-A"], { cwd });
+
+		try {
+			await execFileAsync("git", ["commit", "-m", commitMessage], { cwd });
+		} catch {
+			// Si no hay cambios pendients, continuar al push
+		}
+
+		await execFileAsync("git", ["push", "-u", "origin", "main"], { cwd });
+
+		return {
+			success: true,
+			message: "Conectado y primer commit subido exitosamente ✅",
+		};
+	} catch (error) {
+		const msg = error instanceof Error ? error.message : String(error);
+		return {
+			success: false,
+			message: `❌ Error al conectar o subir: ${msg}`,
+		};
 	}
 }
 
