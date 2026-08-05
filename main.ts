@@ -313,12 +313,12 @@ export class GitStatusView extends ItemView {
 				}
 			});
 
-			fileRow.createEl("span", {
+			fileRow.createSpan({
 				text: file.status || "?",
 				cls: `status-tag status-tag-${file.status}`,
 			});
 
-			fileRow.createEl("span", {
+			fileRow.createSpan({
 				text: file.path,
 				cls: "status-file-path",
 			});
@@ -463,7 +463,7 @@ class GitFacilSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		new Setting(containerEl).setName("Configuración de GitFacil").setHeading();
+		new Setting(containerEl).setName("Configuración").setHeading();
 
 		new Setting(containerEl)
 			.setName("Asistente de configuración")
