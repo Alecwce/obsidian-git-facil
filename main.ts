@@ -42,7 +42,6 @@ export default class GitFacilPlugin extends Plugin {
 	private syncIntervalId: number | null = null;
 
 	override async onload() {
-		console.log("Cargando plugin GitFacil");
 		await this.loadSettings();
 
 		const executeCommitAndPush = async () => {
@@ -56,21 +55,21 @@ export default class GitFacilPlugin extends Plugin {
 			(leaf) => new GitStatusView(leaf, this),
 		);
 
-		this.addRibbonIcon("git-compare", "Estado de Git", async () => {
-			await this.activateView();
+		this.addRibbonIcon("git-compare", "Estado de Git", () => {
+			void this.activateView();
 		});
 
 		this.addCommand({
 			id: "commit-and-push",
-			name: "GitFacil: Commit y Push",
+			name: "Commit y Push",
 			callback: executeCommitAndPush,
 		});
 
 		this.addCommand({
 			id: "open-git-status-view",
-			name: "GitFacil: Abrir panel de Estado de Git",
-			callback: async () => {
-				await this.activateView();
+			name: "Abrir panel de Estado de Git",
+			callback: () => {
+				void this.activateView();
 			},
 		});
 
@@ -78,12 +77,15 @@ export default class GitFacilPlugin extends Plugin {
 		this.configureAutoSync();
 	}
 
-	override onunload() {
-		console.log("Desinstalando plugin GitFacil");
-	}
+	override onunload() {}
 
 	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		const loadedData: unknown = await this.loadData();
+		if (typeof loadedData === "object" && loadedData !== null) {
+			this.settings = Object.assign({}, DEFAULT_SETTINGS, loadedData);
+		} else {
+			this.settings = Object.assign({}, DEFAULT_SETTINGS);
+		}
 	}
 
 	async saveSettings() {
@@ -119,14 +121,16 @@ export default class GitFacilPlugin extends Plugin {
 			leaf = leaves[0];
 		} else {
 			leaf = workspace.getRightLeaf(false);
-			await leaf?.setViewState({
-				type: GIT_STATUS_VIEW_TYPE,
-				active: true,
-			});
+			if (leaf) {
+				await leaf.setViewState({
+					type: GIT_STATUS_VIEW_TYPE,
+					active: true,
+				});
+			}
 		}
 
 		if (leaf) {
-			workspace.revealLeaf(leaf);
+			void workspace.revealLeaf(leaf);
 		}
 	}
 
@@ -224,20 +228,22 @@ export class GitStatusView extends ItemView {
 		const btnRefresh = controls.createEl("button", {
 			text: "🔄 Actualizar lista",
 		});
-		btnRefresh.addEventListener("click", async () => {
-			await this.refreshView();
+		btnRefresh.addEventListener("click", () => {
+			void this.refreshView();
 		});
 
 		const btnPull = controls.createEl("button", {
 			text: "⬇️ Bajar cambios (Pull)",
 		});
-		btnPull.addEventListener("click", async () => {
-			const basePath = this.getBasePath();
-			if (!basePath) return;
-			new Notice("Bajando cambios...");
-			const res = await pullGitChanges(basePath);
-			new Notice(res.message);
-			await this.refreshView();
+		btnPull.addEventListener("click", () => {
+			void (async () => {
+				const basePath = this.getBasePath();
+				if (!basePath) return;
+				new Notice("Bajando cambios...");
+				const res = await pullGitChanges(basePath);
+				new Notice(res.message);
+				await this.refreshView();
+			})();
 		});
 
 		const basePath = this.getBasePath();
@@ -267,21 +273,25 @@ export class GitStatusView extends ItemView {
 			text: "🚀 Commit y push de lo marcado",
 			cls: "mod-cta status-commit-btn",
 		});
-		btnCommitSelected.addEventListener("click", async () => {
-			const filesToCommit = Array.from(this.selectedFiles);
-			if (filesToCommit.length === 0) {
-				new Notice("❌ Selecciona al menos un archivo.");
-				return;
-			}
-			new Notice("Comitiendo archivos marcados...");
-			const msg = getCommitMessage(this.plugin.settings.commitMessageTemplate);
-			const res = await commitAndPushSelectedFiles(
-				basePath,
-				filesToCommit,
-				msg,
-			);
-			new Notice(res.message);
-			await this.refreshView();
+		btnCommitSelected.addEventListener("click", () => {
+			void (async () => {
+				const filesToCommit = Array.from(this.selectedFiles);
+				if (filesToCommit.length === 0) {
+					new Notice("❌ Selecciona al menos un archivo.");
+					return;
+				}
+				new Notice("Comitiendo archivos marcados...");
+				const msg = getCommitMessage(
+					this.plugin.settings.commitMessageTemplate,
+				);
+				const res = await commitAndPushSelectedFiles(
+					basePath,
+					filesToCommit,
+					msg,
+				);
+				new Notice(res.message);
+				await this.refreshView();
+			})();
 		});
 
 		const fileListContainer = containerEl.createDiv({
@@ -353,25 +363,27 @@ class SetupWizardModal extends Modal {
 			text: "Comprobar Git",
 			cls: "mod-cta",
 		});
-		btn1.addEventListener("click", async () => {
-			step1Result.setText("Comprobando...");
-			step1Result.className = "wizard-result";
-			const res = await getGitVersion();
-			if (res.success) {
-				step1Result.setText(`✅ Git instalado (${res.version})`);
-				step1Result.addClass("wizard-success");
-			} else {
-				step1Result.empty();
-				step1Result.addClass("wizard-error");
-				step1Result.createSpan({
-					text: "❌ Git no encontrado. Descárgalo desde ",
-				});
-				const link = step1Result.createEl("a", {
-					text: "git-scm.com",
-					href: "https://git-scm.com",
-				});
-				link.target = "_blank";
-			}
+		btn1.addEventListener("click", () => {
+			void (async () => {
+				step1Result.setText("Comprobando...");
+				step1Result.className = "wizard-result";
+				const res = await getGitVersion();
+				if (res.success) {
+					step1Result.setText(`✅ Git instalado (${res.version})`);
+					step1Result.addClass("wizard-success");
+				} else {
+					step1Result.empty();
+					step1Result.addClass("wizard-error");
+					step1Result.createSpan({
+						text: "❌ Git no encontrado. Descárgalo desde ",
+					});
+					const link = step1Result.createEl("a", {
+						text: "git-scm.com",
+						href: "https://git-scm.com",
+					});
+					link.target = "_blank";
+				}
+			})();
 		});
 
 		// --- PASO 2 ---
@@ -385,12 +397,14 @@ class SetupWizardModal extends Modal {
 			text: "Crear repositorio",
 			cls: "mod-cta",
 		});
-		btn2.addEventListener("click", async () => {
-			step2Result.setText("Creando repositorio...");
-			step2Result.className = "wizard-result";
-			const res = await initGitRepo(this.basePath);
-			step2Result.setText(res.message);
-			step2Result.addClass(res.success ? "wizard-success" : "wizard-error");
+		btn2.addEventListener("click", () => {
+			void (async () => {
+				step2Result.setText("Creando repositorio...");
+				step2Result.className = "wizard-result";
+				const res = await initGitRepo(this.basePath);
+				step2Result.setText(res.message);
+				step2Result.addClass(res.success ? "wizard-success" : "wizard-error");
+			})();
 		});
 
 		// --- PASO 3 ---
@@ -415,17 +429,19 @@ class SetupWizardModal extends Modal {
 			text: "Conectar y hacer primer commit",
 			cls: "mod-cta",
 		});
-		btn3.addEventListener("click", async () => {
-			step3Result.setText("Conectando y subiendo tus notas...");
-			step3Result.className = "wizard-result";
-			const commitMsg = getCommitMessage();
-			const res = await setupRemoteAndFirstCommit(
-				this.basePath,
-				this.remoteUrl,
-				commitMsg,
-			);
-			step3Result.setText(res.message);
-			step3Result.addClass(res.success ? "wizard-success" : "wizard-error");
+		btn3.addEventListener("click", () => {
+			void (async () => {
+				step3Result.setText("Conectando y subiendo tus notas...");
+				step3Result.className = "wizard-result";
+				const commitMsg = getCommitMessage();
+				const res = await setupRemoteAndFirstCommit(
+					this.basePath,
+					this.remoteUrl,
+					commitMsg,
+				);
+				step3Result.setText(res.message);
+				step3Result.addClass(res.success ? "wizard-success" : "wizard-error");
+			})();
 		});
 	}
 
@@ -447,7 +463,7 @@ class GitFacilSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		containerEl.createEl("h2", { text: "Configuración de GitFacil" });
+		new Setting(containerEl).setName("Configuración de GitFacil").setHeading();
 
 		new Setting(containerEl)
 			.setName("Asistente de configuración")
