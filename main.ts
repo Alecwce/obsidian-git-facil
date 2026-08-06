@@ -21,6 +21,7 @@ import {
 	pullGitChanges,
 	runGit,
 	setupRemoteAndFirstCommit,
+	syncAndAlignWithRemote,
 } from "./gitHelper";
 
 export const GIT_STATUS_VIEW_TYPE = "git-facil-status-view";
@@ -134,6 +135,31 @@ export default class GitFacilPlugin extends Plugin {
 		}
 	}
 
+	private showAntiPanicNotice(basePath: string) {
+		const notice = new Notice("", 0);
+		const container = notice.noticeEl;
+		container.empty();
+		container.createDiv({
+			text: "❌ El push fue rechazado (existen cambios remotos pendientes).",
+		});
+		container.createEl("p", {
+			text: "Esto alinea la historia con GitHub sin tocar tus archivos.",
+			cls: "notice-subtext",
+		});
+		const syncBtn = container.createEl("button", {
+			text: "🔄 Sincronizar con GitHub",
+			cls: "mod-cta notice-sync-btn",
+		});
+		syncBtn.addEventListener("click", () => {
+			void (async () => {
+				notice.hide();
+				new Notice("Sincronizando e intentando push nuevamente...");
+				const res = await syncAndAlignWithRemote(basePath);
+				new Notice(res.message);
+			})();
+		});
+	}
+
 	private async handleCommitAndPush(isAutoSync = false): Promise<void> {
 		try {
 			const adapter = this.app.vault.adapter as { getBasePath?: () => string };
@@ -185,6 +211,20 @@ export default class GitFacilPlugin extends Plugin {
 			new Notice("✅ Commit y push exitosos");
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
+			if (
+				message.includes("rejected") ||
+				message.includes("fetch first") ||
+				message.includes("non-fast-forward")
+			) {
+				const adapter = this.app.vault.adapter as {
+					getBasePath?: () => string;
+				};
+				const basePath = adapter.getBasePath?.() ?? "";
+				if (basePath) {
+					this.showAntiPanicNotice(basePath);
+					return;
+				}
+			}
 			new Notice(`❌ Error: ${message}`);
 		}
 	}
@@ -221,7 +261,16 @@ export class GitStatusView extends ItemView {
 		containerEl.addClass("git-facil-status-view");
 
 		const header = containerEl.createDiv({ cls: "status-view-header" });
-		header.createEl("h3", { text: "📊 Estado de Git" });
+		const titleEl = header.createEl("h3", { text: "📊 Estado de Git" });
+
+		const refreshIconBtn = titleEl.createEl("button", {
+			text: "🔄",
+			cls: "status-refresh-icon-btn",
+		});
+		refreshIconBtn.title = "Actualizar lista";
+		refreshIconBtn.addEventListener("click", () => {
+			void this.refreshView();
+		});
 
 		const controls = containerEl.createDiv({ cls: "status-view-actions" });
 
@@ -289,7 +338,33 @@ export class GitStatusView extends ItemView {
 					filesToCommit,
 					msg,
 				);
-				new Notice(res.message);
+				if (res.pushRejected) {
+					const notice = new Notice("", 0);
+					const container = notice.noticeEl;
+					container.empty();
+					container.createDiv({
+						text: "❌ El push fue rechazado (existen cambios remotos pendientes).",
+					});
+					container.createEl("p", {
+						text: "Esto alinea la historia con GitHub sin tocar tus archivos.",
+						cls: "notice-subtext",
+					});
+					const syncBtn = container.createEl("button", {
+						text: "🔄 Sincronizar con GitHub",
+						cls: "mod-cta notice-sync-btn",
+					});
+					syncBtn.addEventListener("click", () => {
+						void (async () => {
+							notice.hide();
+							new Notice("Sincronizando e intentando push nuevamente...");
+							const syncRes = await syncAndAlignWithRemote(basePath);
+							new Notice(syncRes.message);
+							await this.refreshView();
+						})();
+					});
+				} else {
+					new Notice(res.message);
+				}
 				await this.refreshView();
 			})();
 		});
@@ -345,9 +420,18 @@ class SetupWizardModal extends Modal {
 		contentEl.empty();
 		contentEl.addClass("git-facil-wizard");
 
-		contentEl.createEl("h2", {
+		const headerEl = contentEl.createDiv({ cls: "wizard-modal-header" });
+		headerEl.createEl("h2", {
 			text: "🪄 Asistente de configuración de GitFacil",
 		});
+		const closeBtn = headerEl.createEl("button", {
+			text: "✖",
+			cls: "wizard-close-btn",
+		});
+		closeBtn.addEventListener("click", () => {
+			this.close();
+		});
+
 		contentEl.createEl("p", {
 			text: "Configura tu bóveda paso a paso sin usar comandos ni la terminal.",
 		});

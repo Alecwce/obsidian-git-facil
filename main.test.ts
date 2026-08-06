@@ -8,8 +8,10 @@ import {
 	isGitInstalled,
 	isGitRepo,
 	parseGitStatusPorcelain,
+	parsePorcelainOutput,
 	pullGitChanges,
 	setupRemoteAndFirstCommit,
+	syncAndAlignWithRemote,
 } from "./gitHelper";
 
 vi.mock("node:child_process", () => ({
@@ -48,6 +50,25 @@ vi.mock("node:child_process", () => ({
 	},
 }));
 
+describe("parsePorcelainOutput (Renames & File Parsing)", () => {
+	it("debería manejar casos M, ??, D y R con flecha (renames)", () => {
+		const porcelainRaw = [
+			" M src/main.ts",
+			"?? new-note.md",
+			" D deleted.txt",
+			"R  old-name.md -> new-name.md",
+		].join("\n");
+
+		const parsed = parsePorcelainOutput(porcelainRaw);
+
+		expect(parsed).toHaveLength(4);
+		expect(parsed[0]).toEqual({ status: "M", path: "src/main.ts" });
+		expect(parsed[1]).toEqual({ status: "??", path: "new-note.md" });
+		expect(parsed[2]).toEqual({ status: "D", path: "deleted.txt" });
+		expect(parsed[3]).toEqual({ status: "R", path: "new-name.md" });
+	});
+});
+
 describe("getCommitMessage", () => {
 	it("debería usar la plantilla por defecto {fecha}", () => {
 		const testDate = new Date(2026, 7, 4, 17, 45, 0);
@@ -62,7 +83,7 @@ describe("getCommitMessage", () => {
 	});
 });
 
-describe("gitHelper panel lateral de estado de git", () => {
+describe("gitHelper panel lateral y anti-pánico", () => {
 	it("debería parsear el estado de git porcelain correctamente", async () => {
 		const files = await parseGitStatusPorcelain("/fake/path");
 		expect(files).toHaveLength(2);
@@ -94,6 +115,12 @@ describe("gitHelper panel lateral de estado de git", () => {
 		const res = await pullGitChanges("/fake/path");
 		expect(res.success).toBe(true);
 		expect(res.message).toBe("✅ Sin cambios nuevos");
+	});
+
+	it("debería ejecutar syncAndAlignWithRemote (botón anti-pánico)", async () => {
+		const res = await syncAndAlignWithRemote("/fake/path");
+		expect(res.success).toBe(true);
+		expect(res.message).toContain("Historia alineada con GitHub");
 	});
 });
 

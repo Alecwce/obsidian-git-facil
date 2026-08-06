@@ -126,6 +126,25 @@ export async function setupRemoteAndFirstCommit(
 	}
 }
 
+export function parsePorcelainOutput(stdout: string): GitChangedFile[] {
+	const lines = stdout.split("\n").filter((line) => line.trim().length > 0);
+	return lines.map((line) => {
+		const status = line.slice(0, 2).trim();
+		let filePath = line.slice(3).trim();
+
+		if (filePath.includes(" -> ")) {
+			const parts = filePath.split(" -> ");
+			filePath = parts[parts.length - 1].trim();
+		}
+
+		if (filePath.startsWith('"') && filePath.endsWith('"')) {
+			filePath = filePath.slice(1, -1);
+		}
+
+		return { status, path: filePath };
+	});
+}
+
 export async function parseGitStatusPorcelain(
 	cwd: string,
 ): Promise<GitChangedFile[]> {
@@ -133,12 +152,7 @@ export async function parseGitStatusPorcelain(
 		const { stdout } = await execFileAsync("git", ["status", "--porcelain"], {
 			cwd,
 		});
-		const lines = stdout.split("\n").filter((line) => line.trim().length > 0);
-		return lines.map((line) => {
-			const status = line.slice(0, 2).trim();
-			const filePath = line.slice(3).trim();
-			return { status, path: filePath };
-		});
+		return parsePorcelainOutput(stdout);
 	} catch {
 		return [];
 	}
@@ -148,7 +162,7 @@ export async function commitAndPushSelectedFiles(
 	cwd: string,
 	filePaths: string[],
 	commitMessage: string,
-): Promise<{ success: boolean; message: string }> {
+): Promise<{ success: boolean; message: string; pushRejected?: boolean }> {
 	if (filePaths.length === 0) {
 		return {
 			success: false,
@@ -166,9 +180,15 @@ export async function commitAndPushSelectedFiles(
 		};
 	} catch (error) {
 		const msg = error instanceof Error ? error.message : String(error);
+		const isPushRejected =
+			msg.includes("rejected") ||
+			msg.includes("fetch first") ||
+			msg.includes("non-fast-forward");
+
 		return {
 			success: false,
 			message: `❌ Error al subir marcados: ${msg}`,
+			pushRejected: isPushRejected,
 		};
 	}
 }
@@ -190,6 +210,30 @@ export async function pullGitChanges(
 		return {
 			success: false,
 			message: `❌ Error al bajar cambios: ${msg}`,
+		};
+	}
+}
+
+export async function syncAndAlignWithRemote(
+	cwd: string,
+): Promise<{ success: boolean; message: string }> {
+	try {
+		await execFileAsync("git", ["fetch", "origin"], { cwd });
+		try {
+			await execFileAsync("git", ["reset", "--soft", "origin/main"], { cwd });
+		} catch {
+			await execFileAsync("git", ["reset", "--soft", "origin/master"], { cwd });
+		}
+		await execFileAsync("git", ["push"], { cwd });
+		return {
+			success: true,
+			message: "✅ Historia alineada con GitHub e intento de push exitoso",
+		};
+	} catch (error) {
+		const msg = error instanceof Error ? error.message : String(error);
+		return {
+			success: false,
+			message: `❌ Error al sincronizar con GitHub: ${msg}`,
 		};
 	}
 }
