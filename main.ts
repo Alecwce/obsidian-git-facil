@@ -6,6 +6,7 @@ import {
 	Plugin,
 	PluginSettingTab,
 	Setting,
+	type SettingDefinitionItem,
 	type WorkspaceLeaf,
 } from "obsidian";
 import {
@@ -23,16 +24,19 @@ import {
 	setupRemoteAndFirstCommit,
 	syncAndAlignWithRemote,
 } from "./gitHelper";
+import { type Language, setLanguage, t } from "./i18n";
 
 export const GIT_STATUS_VIEW_TYPE = "git-facil-status-view";
 
 export interface GitFacilSettings {
+	language: Language;
 	commitMessageTemplate: string;
 	autoSyncEnabled: boolean;
 	autoSyncIntervalMinutes: number;
 }
 
 export const DEFAULT_SETTINGS: GitFacilSettings = {
+	language: "default",
 	commitMessageTemplate: "📝 notas {fecha}",
 	autoSyncEnabled: false,
 	autoSyncIntervalMinutes: 10,
@@ -49,26 +53,26 @@ export default class GitFacilPlugin extends Plugin {
 			await this.handleCommitAndPush();
 		};
 
-		this.addRibbonIcon("rocket", "GitFacil", executeCommitAndPush);
+		this.addRibbonIcon("rocket", t("ribbonCommitPush"), executeCommitAndPush);
 
 		this.registerView(
 			GIT_STATUS_VIEW_TYPE,
 			(leaf) => new GitStatusView(leaf, this),
 		);
 
-		this.addRibbonIcon("git-compare", "Estado de Git", () => {
+		this.addRibbonIcon("git-compare", t("ribbonGitStatus"), () => {
 			void this.activateView();
 		});
 
 		this.addCommand({
 			id: "commit-and-push",
-			name: "Commit y Push",
+			name: t("cmdCommitPush"),
 			callback: executeCommitAndPush,
 		});
 
 		this.addCommand({
 			id: "open-git-status-view",
-			name: "Abrir panel de Estado de Git",
+			name: t("cmdGitStatus"),
 			callback: () => {
 				void this.activateView();
 			},
@@ -87,9 +91,11 @@ export default class GitFacilPlugin extends Plugin {
 		} else {
 			this.settings = Object.assign({}, DEFAULT_SETTINGS);
 		}
+		setLanguage(this.settings.language);
 	}
 
 	async saveSettings() {
+		setLanguage(this.settings.language);
 		await this.saveData(this.settings);
 		this.configureAutoSync();
 	}
@@ -140,20 +146,20 @@ export default class GitFacilPlugin extends Plugin {
 		const container = notice.noticeEl;
 		container.empty();
 		container.createDiv({
-			text: "❌ El push fue rechazado (existen cambios remotos pendientes).",
+			text: t("antiPanicTitle"),
 		});
 		container.createEl("p", {
-			text: "Esto alinea la historia con GitHub sin tocar tus archivos.",
+			text: t("antiPanicSubtext"),
 			cls: "notice-subtext",
 		});
 		const syncBtn = container.createEl("button", {
-			text: "🔄 Sincronizar con GitHub",
+			text: t("antiPanicBtn"),
 			cls: "mod-cta notice-sync-btn",
 		});
 		syncBtn.addEventListener("click", () => {
 			void (async () => {
 				notice.hide();
-				new Notice("Sincronizando e intentando push nuevamente...");
+				new Notice(t("antiPanicSyncing"));
 				const res = await syncAndAlignWithRemote(basePath);
 				new Notice(res.message);
 			})();
@@ -165,41 +171,37 @@ export default class GitFacilPlugin extends Plugin {
 			const adapter = this.app.vault.adapter as { getBasePath?: () => string };
 			const basePath = adapter.getBasePath?.() ?? "";
 			if (!basePath) {
-				new Notice("❌ Error: No se pudo obtener la ruta de la bóveda.");
+				new Notice(t("errVaultPath"));
 				return;
 			}
 
 			const installed = await isGitInstalled();
 			if (!installed) {
-				new Notice("❌ No se encontró Git. Descárgalo de https://git-scm.com");
+				new Notice(t("errGitNotInstalled"));
 				return;
 			}
 
 			const inRepo = await isGitRepo(basePath);
 			if (!inRepo) {
-				new Notice(
-					"❌ Tu bóveda no es un repositorio Git.\nEjecuta en la terminal de tu bóveda: git init",
-				);
+				new Notice(t("errNotRepo"));
 				return;
 			}
 
 			const remoteExists = await hasGitRemote(basePath);
 			if (!remoteExists) {
-				new Notice(
-					"❌ No hay remote. Ejecuta: git remote add origin <URL-de-tu-repo>",
-				);
+				new Notice(t("errNoRemote"));
 				return;
 			}
 
 			const status = await checkGitStatusPorcelain(basePath);
 			if (!status) {
 				if (!isAutoSync) {
-					new Notice("Nada que subir ✅");
+					new Notice(t("noticeNothingToPush"));
 				}
 				return;
 			}
 
-			new Notice("Comitiendo...");
+			new Notice(t("noticeCommitting"));
 
 			await runGit(["add", "-A"], basePath);
 			const commitMessage = getCommitMessage(
@@ -208,7 +210,7 @@ export default class GitFacilPlugin extends Plugin {
 			await runGit(["commit", "-m", commitMessage], basePath);
 			await runGit(["push"], basePath);
 
-			new Notice("✅ Commit y push exitosos");
+			new Notice(t("noticeCommitPushSuccess"));
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			if (
@@ -225,7 +227,7 @@ export default class GitFacilPlugin extends Plugin {
 					return;
 				}
 			}
-			new Notice(`❌ Error: ${message}`);
+			new Notice(t("noticeError", { msg: message }));
 		}
 	}
 }
@@ -244,7 +246,7 @@ export class GitStatusView extends ItemView {
 	}
 
 	getDisplayText(): string {
-		return "Estado de Git";
+		return t("ribbonGitStatus");
 	}
 
 	override getIcon(): string {
@@ -261,13 +263,13 @@ export class GitStatusView extends ItemView {
 		containerEl.addClass("git-facil-status-view");
 
 		const header = containerEl.createDiv({ cls: "status-view-header" });
-		const titleEl = header.createEl("h3", { text: "📊 Estado de Git" });
+		const titleEl = header.createEl("h3", { text: t("statusPanelTitle") });
 
 		const refreshIconBtn = titleEl.createEl("button", {
 			text: "🔄",
 			cls: "status-refresh-icon-btn",
 		});
-		refreshIconBtn.title = "Actualizar lista";
+		refreshIconBtn.title = t("statusPanelRefreshBtn");
 		refreshIconBtn.addEventListener("click", () => {
 			void this.refreshView();
 		});
@@ -275,20 +277,20 @@ export class GitStatusView extends ItemView {
 		const controls = containerEl.createDiv({ cls: "status-view-actions" });
 
 		const btnRefresh = controls.createEl("button", {
-			text: "🔄 Actualizar lista",
+			text: t("statusPanelRefreshBtn"),
 		});
 		btnRefresh.addEventListener("click", () => {
 			void this.refreshView();
 		});
 
 		const btnPull = controls.createEl("button", {
-			text: "⬇️ Bajar cambios (Pull)",
+			text: t("statusPanelPullBtn"),
 		});
 		btnPull.addEventListener("click", () => {
 			void (async () => {
 				const basePath = this.getBasePath();
 				if (!basePath) return;
-				new Notice("Bajando cambios...");
+				new Notice(t("statusPanelPulling"));
 				const res = await pullGitChanges(basePath);
 				new Notice(res.message);
 				await this.refreshView();
@@ -298,7 +300,7 @@ export class GitStatusView extends ItemView {
 		const basePath = this.getBasePath();
 		if (!basePath) {
 			containerEl.createDiv({
-				text: "❌ No se pudo obtener la ruta de la bóveda",
+				text: t("errVaultPath"),
 				cls: "wizard-error",
 			});
 			return;
@@ -308,28 +310,27 @@ export class GitStatusView extends ItemView {
 
 		if (changedFiles.length === 0) {
 			const emptyState = containerEl.createDiv({ cls: "status-empty-state" });
-			emptyState.createEl("h2", { text: "Todo limpio ✅" });
+			emptyState.createEl("h2", { text: t("statusPanelCleanTitle") });
 			emptyState.createEl("p", {
-				text: "No hay cambios pendientes por guardar o subir.",
+				text: t("statusPanelCleanDesc"),
 			});
 			return;
 		}
 
-		// Seleccionar todos por defecto
 		this.selectedFiles = new Set(changedFiles.map((f) => f.path));
 
 		const btnCommitSelected = containerEl.createEl("button", {
-			text: "🚀 Commit y push de lo marcado",
+			text: t("statusPanelCommitSelectedBtn"),
 			cls: "mod-cta status-commit-btn",
 		});
 		btnCommitSelected.addEventListener("click", () => {
 			void (async () => {
 				const filesToCommit = Array.from(this.selectedFiles);
 				if (filesToCommit.length === 0) {
-					new Notice("❌ Selecciona al menos un archivo.");
+					new Notice(t("statusPanelSelectAtLeastOne"));
 					return;
 				}
-				new Notice("Comitiendo archivos marcados...");
+				new Notice(t("statusPanelCommittingSelected"));
 				const msg = getCommitMessage(
 					this.plugin.settings.commitMessageTemplate,
 				);
@@ -343,20 +344,20 @@ export class GitStatusView extends ItemView {
 					const container = notice.noticeEl;
 					container.empty();
 					container.createDiv({
-						text: "❌ El push fue rechazado (existen cambios remotos pendientes).",
+						text: t("antiPanicTitle"),
 					});
 					container.createEl("p", {
-						text: "Esto alinea la historia con GitHub sin tocar tus archivos.",
+						text: t("antiPanicSubtext"),
 						cls: "notice-subtext",
 					});
 					const syncBtn = container.createEl("button", {
-						text: "🔄 Sincronizar con GitHub",
+						text: t("antiPanicBtn"),
 						cls: "mod-cta notice-sync-btn",
 					});
 					syncBtn.addEventListener("click", () => {
 						void (async () => {
 							notice.hide();
-							new Notice("Sincronizando e intentando push nuevamente...");
+							new Notice(t("antiPanicSyncing"));
 							const syncRes = await syncAndAlignWithRemote(basePath);
 							new Notice(syncRes.message);
 							await this.refreshView();
@@ -422,7 +423,7 @@ class SetupWizardModal extends Modal {
 
 		const headerEl = contentEl.createDiv({ cls: "wizard-modal-header" });
 		headerEl.createEl("h2", {
-			text: "🪄 Asistente de configuración de GitFacil",
+			text: t("wizardTitle"),
 		});
 		const closeBtn = headerEl.createEl("button", {
 			text: "✖",
@@ -433,33 +434,35 @@ class SetupWizardModal extends Modal {
 		});
 
 		contentEl.createEl("p", {
-			text: "Configura tu bóveda paso a paso sin usar comandos ni la terminal.",
+			text: t("wizardSubtitle"),
 		});
 
 		// --- PASO 1 ---
 		const step1Container = contentEl.createDiv({ cls: "wizard-step" });
 		step1Container.createEl("h3", {
-			text: "PASO 1: Comprobar si tienes Git instalado",
+			text: t("wizardStep1Title"),
 		});
 		const step1Result = step1Container.createDiv({ cls: "wizard-result" });
 
 		const btn1 = step1Container.createEl("button", {
-			text: "Comprobar Git",
+			text: t("wizardStep1Btn"),
 			cls: "mod-cta",
 		});
 		btn1.addEventListener("click", () => {
 			void (async () => {
-				step1Result.setText("Comprobando...");
+				step1Result.setText(t("wizardStep1Checking"));
 				step1Result.className = "wizard-result";
 				const res = await getGitVersion();
 				if (res.success) {
-					step1Result.setText(`✅ Git instalado (${res.version})`);
+					step1Result.setText(
+						t("wizardStep1Success", { version: res.version ?? "" }),
+					);
 					step1Result.addClass("wizard-success");
 				} else {
 					step1Result.empty();
 					step1Result.addClass("wizard-error");
 					step1Result.createSpan({
-						text: "❌ Git no encontrado. Descárgalo desde ",
+						text: t("wizardStep1FailText"),
 					});
 					const link = step1Result.createEl("a", {
 						text: "git-scm.com",
@@ -473,17 +476,17 @@ class SetupWizardModal extends Modal {
 		// --- PASO 2 ---
 		const step2Container = contentEl.createDiv({ cls: "wizard-step" });
 		step2Container.createEl("h3", {
-			text: "PASO 2: Preparar tu bóveda para respaldos",
+			text: t("wizardStep2Title"),
 		});
 		const step2Result = step2Container.createDiv({ cls: "wizard-result" });
 
 		const btn2 = step2Container.createEl("button", {
-			text: "Crear repositorio",
+			text: t("wizardStep2Btn"),
 			cls: "mod-cta",
 		});
 		btn2.addEventListener("click", () => {
 			void (async () => {
-				step2Result.setText("Creando repositorio...");
+				step2Result.setText(t("wizardStep2Creating"));
 				step2Result.className = "wizard-result";
 				const res = await initGitRepo(this.basePath);
 				step2Result.setText(res.message);
@@ -493,14 +496,14 @@ class SetupWizardModal extends Modal {
 
 		// --- PASO 3 ---
 		const step3Container = contentEl.createDiv({ cls: "wizard-step" });
-		step3Container.createEl("h3", { text: "PASO 3: Conectar con GitHub" });
+		step3Container.createEl("h3", { text: t("wizardStep3Title") });
 		step3Container.createEl("p", {
-			text: "Pega la dirección de tu repositorio de GitHub (ejemplo: https://github.com/usuario/repo.git):",
+			text: t("wizardStep3Desc"),
 		});
 
 		const inputEl = step3Container.createEl("input", {
 			type: "text",
-			placeholder: "https://github.com/tu-usuario/tu-repositorio.git",
+			placeholder: t("wizardStep3Placeholder"),
 			cls: "wizard-input",
 		});
 		inputEl.addEventListener("input", (e) => {
@@ -510,12 +513,12 @@ class SetupWizardModal extends Modal {
 		const step3Result = step3Container.createDiv({ cls: "wizard-result" });
 
 		const btn3 = step3Container.createEl("button", {
-			text: "Conectar y hacer primer commit",
+			text: t("wizardStep3Btn"),
 			cls: "mod-cta",
 		});
 		btn3.addEventListener("click", () => {
 			void (async () => {
-				step3Result.setText("Conectando y subiendo tus notas...");
+				step3Result.setText(t("wizardStep3Connecting"));
 				step3Result.className = "wizard-result";
 				const commitMsg = getCommitMessage();
 				const res = await setupRemoteAndFirstCommit(
@@ -543,20 +546,88 @@ class GitFacilSettingTab extends PluginSettingTab {
 		this.plugin = plugin;
 	}
 
+	override getSettingDefinitions(): SettingDefinitionItem[] {
+		return [
+			{
+				name: t("languageSettingName"),
+				desc: t("languageSettingDesc"),
+				control: {
+					type: "dropdown",
+					key: "language",
+					defaultValue: DEFAULT_SETTINGS.language,
+					options: {
+						default: "Por defecto (Sistema) / Default (System)",
+						es: "Español",
+						en: "English",
+					},
+				},
+			},
+			{
+				name: t("commitTemplateName"),
+				desc: t("commitTemplateDesc"),
+				control: {
+					type: "text",
+					key: "commitMessageTemplate",
+					defaultValue: DEFAULT_SETTINGS.commitMessageTemplate,
+					placeholder: "📝 notas {fecha}",
+				},
+			},
+			{
+				name: t("autoSyncName"),
+				desc: t("autoSyncDesc"),
+				control: {
+					type: "toggle",
+					key: "autoSyncEnabled",
+					defaultValue: DEFAULT_SETTINGS.autoSyncEnabled,
+				},
+			},
+			{
+				name: t("autoSyncIntervalName"),
+				desc: t("autoSyncIntervalDesc"),
+				control: {
+					type: "number",
+					key: "autoSyncIntervalMinutes",
+					defaultValue: DEFAULT_SETTINGS.autoSyncIntervalMinutes,
+					placeholder: "10",
+					min: 1,
+				},
+			},
+		];
+	}
+
+	override async setControlValue(key: string, value: unknown): Promise<void> {
+		(this.plugin.settings as Record<string, unknown>)[key] = value;
+		await this.plugin.saveSettings();
+	}
+
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		new Setting(containerEl).setName("Configuración").setHeading();
+		new Setting(containerEl).setName(t("settingsHeader")).setHeading();
 
 		new Setting(containerEl)
-			.setName("Asistente de configuración")
-			.setDesc(
-				"Configura tu bóveda con Git paso a paso sin usar comandos ni la terminal.",
-			)
+			.setName(t("languageSettingName"))
+			.setDesc(t("languageSettingDesc"))
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOption("default", "Por defecto (Sistema) / Default (System)")
+					.addOption("es", "Español")
+					.addOption("en", "English")
+					.setValue(this.plugin.settings.language)
+					.onChange(async (value: string) => {
+						this.plugin.settings.language = value as Language;
+						await this.plugin.saveSettings();
+						this.display();
+					}),
+			);
+
+		new Setting(containerEl)
+			.setName(t("wizardSettingName"))
+			.setDesc(t("wizardSettingDesc"))
 			.addButton((button) =>
 				button
-					.setButtonText("🪄 Configurar mi bóveda")
+					.setButtonText(t("wizardSettingBtn"))
 					.setCta()
 					.onClick(() => {
 						const adapter = this.app.vault.adapter as {
@@ -568,8 +639,8 @@ class GitFacilSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Plantilla del mensaje de commit")
-			.setDesc("Usa {fecha} para insertar automáticamente la fecha y hora.")
+			.setName(t("commitTemplateName"))
+			.setDesc(t("commitTemplateDesc"))
 			.addText((text) =>
 				text
 					.setPlaceholder("📝 notas {fecha}")
@@ -581,8 +652,8 @@ class GitFacilSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Auto-sync")
-			.setDesc("Sincroniza automáticamente los cambios a intervalos regulares.")
+			.setName(t("autoSyncName"))
+			.setDesc(t("autoSyncDesc"))
 			.addToggle((toggle) =>
 				toggle
 					.setValue(this.plugin.settings.autoSyncEnabled)
@@ -593,8 +664,8 @@ class GitFacilSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Intervalo de Auto-sync (minutos)")
-			.setDesc("Tiempo en minutos entre cada sincronización automática.")
+			.setName(t("autoSyncIntervalName"))
+			.setDesc(t("autoSyncIntervalDesc"))
 			.addText((text) =>
 				text
 					.setPlaceholder("10")

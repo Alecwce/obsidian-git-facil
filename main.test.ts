@@ -13,6 +13,9 @@ import {
 	setupRemoteAndFirstCommit,
 	syncAndAlignWithRemote,
 } from "./gitHelper";
+import { en } from "./i18n/en";
+import { es } from "./i18n/es";
+import { setLanguage, t } from "./i18n/index";
 
 vi.mock("node:child_process", () => ({
 	execFile: (
@@ -49,6 +52,28 @@ vi.mock("node:child_process", () => ({
 		cb(null, { stdout: "" });
 	},
 }));
+
+describe("Internacionalización (i18n)", () => {
+	it("debería verificar que los diccionarios es y en tienen exactamente las mismas claves", () => {
+		const esKeys = Object.keys(es).sort();
+		const enKeys = Object.keys(en).sort();
+
+		expect(esKeys).toEqual(enKeys);
+	});
+
+	it("debería cambiar de idioma correctamente con setLanguage y traducir plantillas", () => {
+		setLanguage("es");
+		expect(t("settingsHeader")).toBe("Configuración");
+		expect(t("noticeError", { msg: "Prueba" })).toBe("❌ Error: Prueba");
+
+		setLanguage("en");
+		expect(t("settingsHeader")).toBe("Settings");
+		expect(t("noticeError", { msg: "Test" })).toBe("❌ Error: Test");
+
+		// Reset a español
+		setLanguage("es");
+	});
+});
 
 describe("parsePorcelainOutput (Renames & File Parsing)", () => {
 	it("debería manejar casos M, ??, D y R con flecha (renames)", () => {
@@ -98,7 +123,7 @@ describe("gitHelper panel lateral y anti-pánico", () => {
 			"commit msg",
 		);
 		expect(res.success).toBe(true);
-		expect(res.message).toContain("Commit y push de los archivos marcados");
+		expect(res.message).toContain("exitoso");
 	});
 
 	it("debería retornar error si no se selecciona ningún archivo", async () => {
@@ -120,7 +145,7 @@ describe("gitHelper panel lateral y anti-pánico", () => {
 	it("debería ejecutar syncAndAlignWithRemote (botón anti-pánico)", async () => {
 		const res = await syncAndAlignWithRemote("/fake/path");
 		expect(res.success).toBe(true);
-		expect(res.message).toContain("Historia alineada con GitHub");
+		expect(res.message).toContain("alineada");
 	});
 });
 
@@ -144,7 +169,7 @@ describe("gitHelper comprobaciones de entorno y wizard", () => {
 	it("debería responder adecuadamente al crear un repositorio existente", async () => {
 		const res = await initGitRepo("/fake/path");
 		expect(res.success).toBe(true);
-		expect(res.message).toBe("Ya es un repositorio Git ✅");
+		expect(res.message).toContain("repositorio Git");
 	});
 
 	it("debería detectar si el repositorio tiene remote", async () => {
@@ -159,7 +184,7 @@ describe("gitHelper comprobaciones de entorno y wizard", () => {
 			"initial commit",
 		);
 		expect(res.success).toBe(false);
-		expect(res.message).toContain("Por favor ingresa la URL");
+		expect(res.message).toContain("ingresa la URL");
 	});
 
 	it("debería conectar el remoto y completar el proceso", async () => {
@@ -169,8 +194,6 @@ describe("gitHelper comprobaciones de entorno y wizard", () => {
 			"initial commit",
 		);
 		expect(res.success).toBe(true);
-		expect(res.message).toContain(
-			"Conectado y primer commit subido exitosamente",
-		);
+		expect(res.message).toContain("exitosamente");
 	});
 });

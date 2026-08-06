@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { t } from "./i18n";
 
 const execFileAsync = promisify(execFile);
 
@@ -59,13 +60,16 @@ export async function initGitRepo(
 	try {
 		const isRepo = await isGitRepo(cwd);
 		if (isRepo) {
-			return { success: true, message: "Ya es un repositorio Git ✅" };
+			return { success: true, message: t("wizardStep2AlreadyRepo") };
 		}
 		await execFileAsync("git", ["init", "-b", "main"], { cwd });
-		return { success: true, message: "Repositorio Git creado exitosamente ✅" };
+		return { success: true, message: t("wizardStep2Success") };
 	} catch (error) {
 		const msg = error instanceof Error ? error.message : String(error);
-		return { success: false, message: `❌ Error al crear repositorio: ${msg}` };
+		return {
+			success: false,
+			message: t("wizardStep2Error", { msg }),
+		};
 	}
 }
 
@@ -87,7 +91,7 @@ export async function setupRemoteAndFirstCommit(
 	if (!trimmedUrl) {
 		return {
 			success: false,
-			message: "❌ Por favor ingresa la URL de tu repositorio de GitHub.",
+			message: t("wizardStep3ErrorEmpty"),
 		};
 	}
 
@@ -115,13 +119,13 @@ export async function setupRemoteAndFirstCommit(
 
 		return {
 			success: true,
-			message: "Conectado y primer commit subido exitosamente ✅",
+			message: t("wizardStep3Success"),
 		};
 	} catch (error) {
 		const msg = error instanceof Error ? error.message : String(error);
 		return {
 			success: false,
-			message: `❌ Error al conectar o subir: ${msg}`,
+			message: t("wizardStep3ErrorConnect", { msg }),
 		};
 	}
 }
@@ -166,7 +170,7 @@ export async function commitAndPushSelectedFiles(
 	if (filePaths.length === 0) {
 		return {
 			success: false,
-			message: "❌ Selecciona al menos un archivo para subir.",
+			message: t("statusPanelSelectAtLeastOne"),
 		};
 	}
 
@@ -176,7 +180,7 @@ export async function commitAndPushSelectedFiles(
 		await execFileAsync("git", ["push"], { cwd });
 		return {
 			success: true,
-			message: "✅ Commit y push de los archivos marcados exitoso",
+			message: t("gitHelperCommitSelectedSuccess"),
 		};
 	} catch (error) {
 		const msg = error instanceof Error ? error.message : String(error);
@@ -187,7 +191,7 @@ export async function commitAndPushSelectedFiles(
 
 		return {
 			success: false,
-			message: `❌ Error al subir marcados: ${msg}`,
+			message: t("gitHelperCommitSelectedError", { msg }),
 			pushRejected: isPushRejected,
 		};
 	}
@@ -202,14 +206,14 @@ export async function pullGitChanges(
 			stdout.includes("Already up to date") ||
 			stdout.includes("Ya está actualizado")
 		) {
-			return { success: true, message: "✅ Sin cambios nuevos" };
+			return { success: true, message: t("pullNoNewChanges") };
 		}
-		return { success: true, message: "✅ Cambios bajados" };
+		return { success: true, message: t("pullChangesDownloaded") };
 	} catch (error) {
 		const msg = error instanceof Error ? error.message : String(error);
 		return {
 			success: false,
-			message: `❌ Error al bajar cambios: ${msg}`,
+			message: t("gitHelperPullError", { msg }),
 		};
 	}
 }
@@ -227,13 +231,13 @@ export async function syncAndAlignWithRemote(
 		await execFileAsync("git", ["push"], { cwd });
 		return {
 			success: true,
-			message: "✅ Historia alineada con GitHub e intento de push exitoso",
+			message: t("gitHelperSyncSuccess"),
 		};
 	} catch (error) {
 		const msg = error instanceof Error ? error.message : String(error);
 		return {
 			success: false,
-			message: `❌ Error al sincronizar con GitHub: ${msg}`,
+			message: t("gitHelperSyncError", { msg }),
 		};
 	}
 }
