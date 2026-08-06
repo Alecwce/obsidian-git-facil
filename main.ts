@@ -78,6 +78,18 @@ export default class GitFacilPlugin extends Plugin {
 			},
 		});
 
+		this.addCommand({
+			id: "open-setup-wizard",
+			name: t("cmdOpenSetupWizard"),
+			callback: () => {
+				const adapter = this.app.vault.adapter as {
+					getBasePath?: () => string;
+				};
+				const basePath = adapter.getBasePath?.() ?? "";
+				new SetupWizardModal(this.app, basePath).open();
+			},
+		});
+
 		this.addSettingTab(new GitFacilSettingTab(this.app, this));
 		this.configureAutoSync();
 	}
@@ -143,7 +155,7 @@ export default class GitFacilPlugin extends Plugin {
 
 	private showAntiPanicNotice(basePath: string) {
 		const notice = new Notice("", 0);
-		const container = notice.noticeEl;
+		const container = notice.messageEl;
 		container.empty();
 		container.createDiv({
 			text: t("antiPanicTitle"),
@@ -341,7 +353,7 @@ export class GitStatusView extends ItemView {
 				);
 				if (res.pushRejected) {
 					const notice = new Notice("", 0);
-					const container = notice.noticeEl;
+					const container = notice.messageEl;
 					container.empty();
 					container.createDiv({
 						text: t("antiPanicTitle"),
@@ -598,85 +610,5 @@ class GitFacilSettingTab extends PluginSettingTab {
 	override async setControlValue(key: string, value: unknown): Promise<void> {
 		(this.plugin.settings as Record<string, unknown>)[key] = value;
 		await this.plugin.saveSettings();
-	}
-
-	display(): void {
-		const { containerEl } = this;
-		containerEl.empty();
-
-		new Setting(containerEl).setName(t("settingsHeader")).setHeading();
-
-		new Setting(containerEl)
-			.setName(t("languageSettingName"))
-			.setDesc(t("languageSettingDesc"))
-			.addDropdown((dropdown) =>
-				dropdown
-					.addOption("default", "Por defecto (Sistema) / Default (System)")
-					.addOption("es", "Español")
-					.addOption("en", "English")
-					.setValue(this.plugin.settings.language)
-					.onChange(async (value: string) => {
-						this.plugin.settings.language = value as Language;
-						await this.plugin.saveSettings();
-						this.display();
-					}),
-			);
-
-		new Setting(containerEl)
-			.setName(t("wizardSettingName"))
-			.setDesc(t("wizardSettingDesc"))
-			.addButton((button) =>
-				button
-					.setButtonText(t("wizardSettingBtn"))
-					.setCta()
-					.onClick(() => {
-						const adapter = this.app.vault.adapter as {
-							getBasePath?: () => string;
-						};
-						const basePath = adapter.getBasePath?.() ?? "";
-						new SetupWizardModal(this.app, basePath).open();
-					}),
-			);
-
-		new Setting(containerEl)
-			.setName(t("commitTemplateName"))
-			.setDesc(t("commitTemplateDesc"))
-			.addText((text) =>
-				text
-					.setPlaceholder("📝 notas {fecha}")
-					.setValue(this.plugin.settings.commitMessageTemplate)
-					.onChange(async (value) => {
-						this.plugin.settings.commitMessageTemplate = value;
-						await this.plugin.saveSettings();
-					}),
-			);
-
-		new Setting(containerEl)
-			.setName(t("autoSyncName"))
-			.setDesc(t("autoSyncDesc"))
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.autoSyncEnabled)
-					.onChange(async (value) => {
-						this.plugin.settings.autoSyncEnabled = value;
-						await this.plugin.saveSettings();
-					}),
-			);
-
-		new Setting(containerEl)
-			.setName(t("autoSyncIntervalName"))
-			.setDesc(t("autoSyncIntervalDesc"))
-			.addText((text) =>
-				text
-					.setPlaceholder("10")
-					.setValue(String(this.plugin.settings.autoSyncIntervalMinutes))
-					.onChange(async (value) => {
-						const num = Number.parseInt(value, 10);
-						if (!Number.isNaN(num) && num > 0) {
-							this.plugin.settings.autoSyncIntervalMinutes = num;
-							await this.plugin.saveSettings();
-						}
-					}),
-			);
 	}
 }

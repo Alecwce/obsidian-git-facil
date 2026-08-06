@@ -23,6 +23,7 @@ export const es = {
 	ribbonGitStatus: "Estado de Git",
 	cmdCommitPush: "Commit y Push",
 	cmdGitStatus: "Abrir panel de Estado de Git",
+	cmdOpenSetupWizard: "Abrir asistente de configuración",
 
 	// Notices & Execution
 	errVaultPath: "❌ Error: No se pudo obtener la ruta de la bóveda.",

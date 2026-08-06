@@ -23,6 +23,7 @@ export const en: Record<TranslationKeys, string> = {
 	ribbonGitStatus: "Git Status",
 	cmdCommitPush: "Commit and Push",
 	cmdGitStatus: "Open Git Status panel",
+	cmdOpenSetupWizard: "Open setup wizard",
 
 	// Notices & Execution
 	errVaultPath: "❌ Error: Could not get vault path.",
