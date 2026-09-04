@@ -1,0 +1,33 @@
+name: Submission check
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+jobs:
+  submission-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build production bundle
+        run: pnpm run build
+
+      - name: Validate Obsidian directory submission readiness
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/submission-check.mjs

@@ -10,7 +10,8 @@
 		"typecheck": "tsc --noEmit",
 		"format": "biome format --write .",
 		"test": "vitest run",
-		"deploy": "node scripts/deploy.mjs"
+		"deploy": "node scripts/deploy.mjs",
+		"validate:submission": "node scripts/submission-check.mjs"
 	},
 	"keywords": [
 		"obsidian",
