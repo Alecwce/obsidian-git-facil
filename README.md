@@ -28,7 +28,7 @@
 
 ### Option 3: Manual Installation
 1. Download `main.js`, `manifest.json`, and `styles.css` from [Releases](https://github.com/Alecwce/obsidian-git-facil/releases).
-2. Create folder `YOUR_VAULT/.obsidian/plugins/git-facil/`.
+2. Inside your vault folder (for example `MiBoveda/`), create the folder `.obsidian/plugins/git-facil/` (full path like `MiBoveda/.obsidian/plugins/git-facil/`).
 3. Copy the downloaded files into that folder and reload plugins.
 
 ---
