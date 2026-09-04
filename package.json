@@ -23,7 +23,7 @@
 		"tslib": "^2.6.2"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^1.9.4",
+		"@biomejs/biome": "^2.5.11",
 		"@types/node": "^26.4.1",
 		"esbuild": "^0.20.0",
 		"obsidian": "^1.13.1",
