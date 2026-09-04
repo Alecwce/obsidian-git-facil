@@ -1,5 +1,5 @@
 import { en } from "./en";
-import { type TranslationKeys, es } from "./es";
+import { es, type TranslationKeys } from "./es";
 
 export type Language = "es" | "en" | "default";
 export type { TranslationKeys };
