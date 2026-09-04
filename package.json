@@ -12,7 +12,11 @@
 		"test": "vitest run",
 		"deploy": "node scripts/deploy.mjs"
 	},
-	"keywords": ["obsidian", "obsidian-plugin", "git"],
+	"keywords": [
+		"obsidian",
+		"obsidian-plugin",
+		"git"
+	],
 	"author": "Alexwce",
 	"license": "MIT",
 	"packageManager": "pnpm@11.25.0",
@@ -23,11 +27,11 @@
 		"tslib": "^2.6.2"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^1.9.4",
+		"@biomejs/biome": "^2.5.12",
 		"@types/node": "^26.4.1",
-		"esbuild": "^0.20.0",
+		"esbuild": "^0.28.2",
 		"obsidian": "^1.13.1",
-		"typescript": "^5.3.3",
-		"vitest": "^1.2.0"
+		"typescript": "^7.0.2",
+		"vitest": "^4.1.11"
 	}
 }

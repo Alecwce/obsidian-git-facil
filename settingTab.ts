@@ -4,8 +4,8 @@ import {
 	type SettingDefinitionItem,
 } from "obsidian";
 import { t } from "./i18n";
-import { DEFAULT_SETTINGS } from "./main";
 import type GitFacilPlugin from "./main";
+import { DEFAULT_SETTINGS } from "./main";
 
 export class GitFacilSettingTab extends PluginSettingTab {
 	plugin: GitFacilPlugin;
