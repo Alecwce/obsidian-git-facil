@@ -17,6 +17,10 @@ export const en: Record<TranslationKeys, string> = {
 	autoSyncDesc: "Automatically sync changes at regular intervals.",
 	autoSyncIntervalName: "Auto-sync interval (minutes)",
 	autoSyncIntervalDesc: "Time in minutes between each automatic sync.",
+	customGitPathName: "Custom Git binary path",
+	customGitPathDesc:
+		"Optional: If Git is not automatically detected (e.g. macOS/Linux), enter the absolute path to the git executable (e.g. /usr/bin/git or /usr/local/bin/git).",
+	customGitPathPlaceholder: "git (default)",
 
 	// Ribbon & Commands
 	ribbonCommitPush: "GitFacil",

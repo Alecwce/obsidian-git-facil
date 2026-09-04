@@ -17,6 +17,10 @@ export const es = {
 	autoSyncIntervalName: "Intervalo de Auto-sync (minutos)",
 	autoSyncIntervalDesc:
 		"Tiempo en minutos entre cada sincronización automática.",
+	customGitPathName: "Ruta personalizada de Git",
+	customGitPathDesc:
+		"Opcional: Si Git no se detecta automáticamente (ej. macOS/Linux), ingresa la ruta absoluta al ejecutable (ej. /usr/bin/git o /usr/local/bin/git).",
+	customGitPathPlaceholder: "git (por defecto)",
 
 	// Ribbon & Commands
 	ribbonCommitPush: "GitFacil",

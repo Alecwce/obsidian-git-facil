@@ -9,6 +9,11 @@ export interface GitChangedFile {
 	path: string;
 }
 
+export function resolveGit(gitPath?: string): string {
+	const trimmed = gitPath?.trim();
+	return trimmed && trimmed.length > 0 ? trimmed : "git";
+}
+
 export function getCommitMessage(
 	template = "📝 notas {fecha}",
 	date: Date = new Date(),
@@ -24,30 +29,54 @@ export function getCommitMessage(
 	return template.replace("{fecha}", dateStr);
 }
 
-export async function isGitInstalled(): Promise<boolean> {
+export async function isGitInstalled(gitPath?: string): Promise<boolean> {
+	const git = resolveGit(gitPath);
 	try {
-		await execFileAsync("git", ["--version"]);
+		await execFileAsync(git, ["--version"]);
 		return true;
 	} catch {
 		return false;
 	}
 }
 
-export async function getGitVersion(): Promise<{
+export async function getGitVersion(gitPath?: string): Promise<{
 	success: boolean;
 	version?: string;
 }> {
+	const git = resolveGit(gitPath);
 	try {
-		const { stdout } = await execFileAsync("git", ["--version"]);
+		const { stdout } = await execFileAsync(git, ["--version"]);
 		return { success: true, version: stdout.trim() };
 	} catch {
 		return { success: false };
 	}
 }
 
-export async function isGitRepo(cwd: string): Promise<boolean> {
+export async function getCurrentBranch(
+	cwd: string,
+	gitPath?: string,
+): Promise<string> {
+	const git = resolveGit(gitPath);
 	try {
-		await execFileAsync("git", ["rev-parse", "--is-inside-work-tree"], { cwd });
+		const { stdout } = await execFileAsync(
+			git,
+			["rev-parse", "--abbrev-ref", "HEAD"],
+			{ cwd },
+		);
+		const branch = stdout.trim();
+		return branch && branch !== "HEAD" ? branch : "main";
+	} catch {
+		return "main";
+	}
+}
+
+export async function isGitRepo(
+	cwd: string,
+	gitPath?: string,
+): Promise<boolean> {
+	const git = resolveGit(gitPath);
+	try {
+		await execFileAsync(git, ["rev-parse", "--is-inside-work-tree"], { cwd });
 		return true;
 	} catch {
 		return false;
@@ -56,13 +85,15 @@ export async function isGitRepo(cwd: string): Promise<boolean> {
 
 export async function initGitRepo(
 	cwd: string,
+	gitPath?: string,
 ): Promise<{ success: boolean; message: string }> {
+	const git = resolveGit(gitPath);
 	try {
-		const isRepo = await isGitRepo(cwd);
+		const isRepo = await isGitRepo(cwd, gitPath);
 		if (isRepo) {
 			return { success: true, message: t("wizardStep2AlreadyRepo") };
 		}
-		await execFileAsync("git", ["init", "-b", "main"], { cwd });
+		await execFileAsync(git, ["init", "-b", "main"], { cwd });
 		return { success: true, message: t("wizardStep2Success") };
 	} catch (error) {
 		const msg = error instanceof Error ? error.message : String(error);
@@ -73,9 +104,13 @@ export async function initGitRepo(
 	}
 }
 
-export async function hasGitRemote(cwd: string): Promise<boolean> {
+export async function hasGitRemote(
+	cwd: string,
+	gitPath?: string,
+): Promise<boolean> {
+	const git = resolveGit(gitPath);
 	try {
-		const { stdout } = await execFileAsync("git", ["remote"], { cwd });
+		const { stdout } = await execFileAsync(git, ["remote"], { cwd });
 		return stdout.trim().length > 0;
 	} catch {
 		return false;
@@ -86,7 +121,9 @@ export async function setupRemoteAndFirstCommit(
 	cwd: string,
 	remoteUrl: string,
 	commitMessage: string,
+	gitPath?: string,
 ): Promise<{ success: boolean; message: string }> {
+	const git = resolveGit(gitPath);
 	const trimmedUrl = remoteUrl.trim();
 	if (!trimmedUrl) {
 		return {
@@ -96,26 +133,26 @@ export async function setupRemoteAndFirstCommit(
 	}
 
 	try {
-		const remoteExists = await hasGitRemote(cwd);
+		const remoteExists = await hasGitRemote(cwd, gitPath);
 		if (remoteExists) {
-			await execFileAsync("git", ["remote", "set-url", "origin", trimmedUrl], {
+			await execFileAsync(git, ["remote", "set-url", "origin", trimmedUrl], {
 				cwd,
 			});
 		} else {
-			await execFileAsync("git", ["remote", "add", "origin", trimmedUrl], {
+			await execFileAsync(git, ["remote", "add", "origin", trimmedUrl], {
 				cwd,
 			});
 		}
 
-		await execFileAsync("git", ["add", "-A"], { cwd });
+		await execFileAsync(git, ["add", "-A"], { cwd });
 
 		try {
-			await execFileAsync("git", ["commit", "-m", commitMessage], { cwd });
+			await execFileAsync(git, ["commit", "-m", commitMessage], { cwd });
 		} catch {
 			// Si no hay cambios pendientes, continuar al push
 		}
 
-		await execFileAsync("git", ["push", "-u", "origin", "main"], { cwd });
+		await execFileAsync(git, ["push", "-u", "origin", "main"], { cwd });
 
 		return {
 			success: true,
@@ -151,11 +188,15 @@ export function parsePorcelainOutput(stdout: string): GitChangedFile[] {
 
 export async function parseGitStatusPorcelain(
 	cwd: string,
+	gitPath?: string,
 ): Promise<GitChangedFile[]> {
+	const git = resolveGit(gitPath);
 	try {
-		const { stdout } = await execFileAsync("git", ["status", "--porcelain"], {
-			cwd,
-		});
+		const { stdout } = await execFileAsync(
+			git,
+			["-c", "core.quotepath=false", "status", "--porcelain"],
+			{ cwd },
+		);
 		return parsePorcelainOutput(stdout);
 	} catch {
 		return [];
@@ -166,7 +207,9 @@ export async function commitAndPushSelectedFiles(
 	cwd: string,
 	filePaths: string[],
 	commitMessage: string,
+	gitPath?: string,
 ): Promise<{ success: boolean; message: string; pushRejected?: boolean }> {
+	const git = resolveGit(gitPath);
 	if (filePaths.length === 0) {
 		return {
 			success: false,
@@ -175,9 +218,9 @@ export async function commitAndPushSelectedFiles(
 	}
 
 	try {
-		await execFileAsync("git", ["add", "--", ...filePaths], { cwd });
-		await execFileAsync("git", ["commit", "-m", commitMessage], { cwd });
-		await execFileAsync("git", ["push"], { cwd });
+		await execFileAsync(git, ["add", "--", ...filePaths], { cwd });
+		await execFileAsync(git, ["commit", "-m", commitMessage], { cwd });
+		await execFileAsync(git, ["push"], { cwd });
 		return {
 			success: true,
 			message: t("gitHelperCommitSelectedSuccess"),
@@ -199,9 +242,11 @@ export async function commitAndPushSelectedFiles(
 
 export async function pullGitChanges(
 	cwd: string,
+	gitPath?: string,
 ): Promise<{ success: boolean; message: string }> {
+	const git = resolveGit(gitPath);
 	try {
-		const { stdout } = await execFileAsync("git", ["pull"], { cwd });
+		const { stdout } = await execFileAsync(git, ["pull"], { cwd });
 		if (
 			stdout.includes("Already up to date") ||
 			stdout.includes("Ya está actualizado")
@@ -220,15 +265,26 @@ export async function pullGitChanges(
 
 export async function syncAndAlignWithRemote(
 	cwd: string,
+	gitPath?: string,
 ): Promise<{ success: boolean; message: string }> {
+	const git = resolveGit(gitPath);
 	try {
-		await execFileAsync("git", ["fetch", "origin"], { cwd });
+		const branch = await getCurrentBranch(cwd, gitPath);
+		await execFileAsync(git, ["fetch", "origin"], { cwd });
 		try {
-			await execFileAsync("git", ["reset", "--soft", "origin/main"], { cwd });
-		} catch {
-			await execFileAsync("git", ["reset", "--soft", "origin/master"], { cwd });
+			await execFileAsync(git, ["pull", "--rebase", "origin", branch], {
+				cwd,
+			});
+		} catch (pullError) {
+			// Si hay conflicto durante rebase, abortar para no dejar el repositorio en estado inconsistente
+			try {
+				await execFileAsync(git, ["rebase", "--abort"], { cwd });
+			} catch {
+				// Ignorar error al abortar
+			}
+			throw pullError;
 		}
-		await execFileAsync("git", ["push"], { cwd });
+		await execFileAsync(git, ["push", "origin", branch], { cwd });
 		return {
 			success: true,
 			message: t("gitHelperSyncSuccess"),
@@ -242,14 +298,25 @@ export async function syncAndAlignWithRemote(
 	}
 }
 
-export async function checkGitStatusPorcelain(cwd: string): Promise<string> {
-	const { stdout } = await execFileAsync("git", ["status", "--porcelain"], {
-		cwd,
-	});
+export async function checkGitStatusPorcelain(
+	cwd: string,
+	gitPath?: string,
+): Promise<string> {
+	const git = resolveGit(gitPath);
+	const { stdout } = await execFileAsync(
+		git,
+		["-c", "core.quotepath=false", "status", "--porcelain"],
+		{ cwd },
+	);
 	return stdout.trim();
 }
 
-export async function runGit(args: string[], cwd: string): Promise<string> {
-	const { stdout } = await execFileAsync("git", args, { cwd });
+export async function runGit(
+	args: string[],
+	cwd: string,
+	gitPath?: string,
+): Promise<string> {
+	const git = resolveGit(gitPath);
+	const { stdout } = await execFileAsync(git, args, { cwd });
 	return stdout;
 }

@@ -2,3 +2,5 @@ node_modules/
 dist/
 *.log
 main.js
+.env
+.env.local

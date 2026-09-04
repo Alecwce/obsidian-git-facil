@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
 	commitAndPushSelectedFiles,
 	getCommitMessage,
+	getCurrentBranch,
 	getGitVersion,
 	hasGitRemote,
 	initGitRepo,
@@ -10,12 +11,15 @@ import {
 	parseGitStatusPorcelain,
 	parsePorcelainOutput,
 	pullGitChanges,
+	resolveGit,
 	setupRemoteAndFirstCommit,
 	syncAndAlignWithRemote,
 } from "./gitHelper";
 import { en } from "./i18n/en";
 import { es } from "./i18n/es";
 import { setLanguage, t } from "./i18n/index";
+
+let mockFailRebase = false;
 
 vi.mock("node:child_process", () => ({
 	execFile: (
@@ -37,15 +41,23 @@ vi.mock("node:child_process", () => ({
 			cb(null, { stdout: "true" });
 			return;
 		}
+		if (args.includes("--abbrev-ref")) {
+			cb(null, { stdout: "main\n" });
+			return;
+		}
 		if (args[0] === "remote") {
 			cb(null, { stdout: "origin" });
 			return;
 		}
-		if (args.includes("--porcelain")) {
+		if (args.includes("status") && args.includes("--porcelain")) {
 			cb(null, { stdout: " M main.ts\n?? note.md" });
 			return;
 		}
 		if (args[0] === "pull") {
+			if (args.includes("--rebase") && mockFailRebase) {
+				cb(new Error("Conflict during rebase"), { stdout: "" });
+				return;
+			}
 			cb(null, { stdout: "Already up to date." });
 			return;
 		}
@@ -75,7 +87,22 @@ describe("Internacionalización (i18n)", () => {
 	});
 });
 
-describe("parsePorcelainOutput (Renames & File Parsing)", () => {
+describe("resolveGit y personalización de ruta", () => {
+	it("debería retornar 'git' por defecto si no se pasa ruta o es vacía", () => {
+		expect(resolveGit()).toBe("git");
+		expect(resolveGit("")).toBe("git");
+		expect(resolveGit("   ")).toBe("git");
+	});
+
+	it("debería retornar la ruta personalizada limpia si se especifica", () => {
+		expect(resolveGit("/usr/local/bin/git")).toBe("/usr/local/bin/git");
+		expect(resolveGit("  C:\\Program Files\\Git\\bin\\git.exe  ")).toBe(
+			"C:\\Program Files\\Git\\bin\\git.exe",
+		);
+	});
+});
+
+describe("parsePorcelainOutput (Renames, Unicode & File Parsing)", () => {
 	it("debería manejar casos M, ??, D y R con flecha (renames)", () => {
 		const porcelainRaw = [
 			" M src/main.ts",
@@ -91,6 +118,30 @@ describe("parsePorcelainOutput (Renames & File Parsing)", () => {
 		expect(parsed[1]).toEqual({ status: "??", path: "new-note.md" });
 		expect(parsed[2]).toEqual({ status: "D", path: "deleted.txt" });
 		expect(parsed[3]).toEqual({ status: "R", path: "new-name.md" });
+	});
+
+	it("debería manejar correctamente archivos con tildes, eñes y espacios", () => {
+		const porcelainUnicode = [
+			' M "01 Notas/Sesión de Diseño.md"',
+			"?? Artículos/Años 90.md",
+			'R  "antiguo nombre.md" -> "Notas/Día 1 y Más.md"',
+		].join("\n");
+
+		const parsed = parsePorcelainOutput(porcelainUnicode);
+
+		expect(parsed).toHaveLength(3);
+		expect(parsed[0]).toEqual({
+			status: "M",
+			path: "01 Notas/Sesión de Diseño.md",
+		});
+		expect(parsed[1]).toEqual({
+			status: "??",
+			path: "Artículos/Años 90.md",
+		});
+		expect(parsed[2]).toEqual({
+			status: "R",
+			path: "Notas/Día 1 y Más.md",
+		});
 	});
 });
 
@@ -142,10 +193,24 @@ describe("gitHelper panel lateral y anti-pánico", () => {
 		expect(res.message).toBe("✅ Sin cambios nuevos");
 	});
 
-	it("debería ejecutar syncAndAlignWithRemote (botón anti-pánico)", async () => {
+	it("debería obtener la rama actual", async () => {
+		const branch = await getCurrentBranch("/fake/path");
+		expect(branch).toBe("main");
+	});
+
+	it("debería ejecutar syncAndAlignWithRemote con pull rebase de forma segura", async () => {
+		mockFailRebase = false;
 		const res = await syncAndAlignWithRemote("/fake/path");
 		expect(res.success).toBe(true);
 		expect(res.message).toContain("alineada");
+	});
+
+	it("debería manejar y abortar rebase limpiamente si ocurre un conflicto", async () => {
+		mockFailRebase = true;
+		const res = await syncAndAlignWithRemote("/fake/path");
+		expect(res.success).toBe(false);
+		expect(res.message).toContain("Conflict during rebase");
+		mockFailRebase = false;
 	});
 });
 

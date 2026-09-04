@@ -1,17 +1,16 @@
-name: Release
+name: CI
 
 on:
   push:
-    tags:
-      - '[0-9]*.[0-9]*.[0-9]*'
-
-permissions:
-  contents: write
-  id-token: write
-  attestations: write
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
-  build-and-release:
+  validate:
+    name: Lint, Typecheck, Test & Build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -40,18 +39,5 @@ jobs:
       - name: Run unit tests
         run: pnpm test
 
-      - name: Build plugin
+      - name: Build production bundle
         run: pnpm run build
-
-      - name: Attest build provenance
-        uses: actions/attest-build-provenance@v2
-        with:
-          subject-path: |
-            main.js
-            styles.css
-
-      - name: Create GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release create "${GITHUB_REF_NAME}" main.js manifest.json styles.css --title "GitFacil ${GITHUB_REF_NAME}" --generate-notes

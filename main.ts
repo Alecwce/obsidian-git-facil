@@ -5,7 +5,6 @@ import {
 	Notice,
 	Plugin,
 	PluginSettingTab,
-	Setting,
 	type SettingDefinitionItem,
 	type WorkspaceLeaf,
 } from "obsidian";
@@ -33,6 +32,7 @@ export interface GitFacilSettings {
 	commitMessageTemplate: string;
 	autoSyncEnabled: boolean;
 	autoSyncIntervalMinutes: number;
+	customGitPath: string;
 }
 
 export const DEFAULT_SETTINGS: GitFacilSettings = {
@@ -40,6 +40,7 @@ export const DEFAULT_SETTINGS: GitFacilSettings = {
 	commitMessageTemplate: "📝 notas {fecha}",
 	autoSyncEnabled: false,
 	autoSyncIntervalMinutes: 10,
+	customGitPath: "",
 };
 
 export default class GitFacilPlugin extends Plugin {
@@ -86,7 +87,7 @@ export default class GitFacilPlugin extends Plugin {
 					getBasePath?: () => string;
 				};
 				const basePath = adapter.getBasePath?.() ?? "";
-				new SetupWizardModal(this.app, basePath).open();
+				new SetupWizardModal(this.app, this, basePath).open();
 			},
 		});
 
@@ -94,7 +95,12 @@ export default class GitFacilPlugin extends Plugin {
 		this.configureAutoSync();
 	}
 
-	override onunload() {}
+	override onunload() {
+		if (this.syncIntervalId !== null) {
+			window.clearInterval(this.syncIntervalId);
+			this.syncIntervalId = null;
+		}
+	}
 
 	async loadSettings() {
 		const loadedData: unknown = await this.loadData();
@@ -149,7 +155,7 @@ export default class GitFacilPlugin extends Plugin {
 		}
 
 		if (leaf) {
-			this.app.workspace.setActiveLeaf(leaf, true);
+			this.app.workspace.setActiveLeaf(leaf, { focus: true });
 		}
 	}
 
@@ -172,7 +178,10 @@ export default class GitFacilPlugin extends Plugin {
 			void (async () => {
 				notice.hide();
 				new Notice(t("antiPanicSyncing"));
-				const res = await syncAndAlignWithRemote(basePath);
+				const res = await syncAndAlignWithRemote(
+					basePath,
+					this.settings.customGitPath,
+				);
 				new Notice(res.message);
 			})();
 		});
@@ -187,25 +196,26 @@ export default class GitFacilPlugin extends Plugin {
 				return;
 			}
 
-			const installed = await isGitInstalled();
+			const gitPath = this.settings.customGitPath;
+			const installed = await isGitInstalled(gitPath);
 			if (!installed) {
 				new Notice(t("errGitNotInstalled"));
 				return;
 			}
 
-			const inRepo = await isGitRepo(basePath);
+			const inRepo = await isGitRepo(basePath, gitPath);
 			if (!inRepo) {
 				new Notice(t("errNotRepo"));
 				return;
 			}
 
-			const remoteExists = await hasGitRemote(basePath);
+			const remoteExists = await hasGitRemote(basePath, gitPath);
 			if (!remoteExists) {
 				new Notice(t("errNoRemote"));
 				return;
 			}
 
-			const status = await checkGitStatusPorcelain(basePath);
+			const status = await checkGitStatusPorcelain(basePath, gitPath);
 			if (!status) {
 				if (!isAutoSync) {
 					new Notice(t("noticeNothingToPush"));
@@ -215,12 +225,12 @@ export default class GitFacilPlugin extends Plugin {
 
 			new Notice(t("noticeCommitting"));
 
-			await runGit(["add", "-A"], basePath);
+			await runGit(["add", "-A"], basePath, gitPath);
 			const commitMessage = getCommitMessage(
 				this.settings.commitMessageTemplate,
 			);
-			await runGit(["commit", "-m", commitMessage], basePath);
-			await runGit(["push"], basePath);
+			await runGit(["commit", "-m", commitMessage], basePath, gitPath);
+			await runGit(["push"], basePath, gitPath);
 
 			new Notice(t("noticeCommitPushSuccess"));
 		} catch (error) {
@@ -303,7 +313,10 @@ export class GitStatusView extends ItemView {
 				const basePath = this.getBasePath();
 				if (!basePath) return;
 				new Notice(t("statusPanelPulling"));
-				const res = await pullGitChanges(basePath);
+				const res = await pullGitChanges(
+					basePath,
+					this.plugin.settings.customGitPath,
+				);
 				new Notice(res.message);
 				await this.refreshView();
 			})();
@@ -318,7 +331,8 @@ export class GitStatusView extends ItemView {
 			return;
 		}
 
-		const changedFiles = await parseGitStatusPorcelain(basePath);
+		const gitPath = this.plugin.settings.customGitPath;
+		const changedFiles = await parseGitStatusPorcelain(basePath, gitPath);
 
 		if (changedFiles.length === 0) {
 			const emptyState = containerEl.createDiv({ cls: "status-empty-state" });
@@ -350,6 +364,7 @@ export class GitStatusView extends ItemView {
 					basePath,
 					filesToCommit,
 					msg,
+					this.plugin.settings.customGitPath,
 				);
 				if (res.pushRejected) {
 					const notice = new Notice("", 0);
@@ -370,7 +385,10 @@ export class GitStatusView extends ItemView {
 						void (async () => {
 							notice.hide();
 							new Notice(t("antiPanicSyncing"));
-							const syncRes = await syncAndAlignWithRemote(basePath);
+							const syncRes = await syncAndAlignWithRemote(
+								basePath,
+								this.plugin.settings.customGitPath,
+							);
 							new Notice(syncRes.message);
 							await this.refreshView();
 						})();
@@ -420,11 +438,13 @@ export class GitStatusView extends ItemView {
 }
 
 class SetupWizardModal extends Modal {
+	private plugin: GitFacilPlugin;
 	private basePath: string;
 	private remoteUrl = "";
 
-	constructor(app: App, basePath: string) {
+	constructor(app: App, plugin: GitFacilPlugin, basePath: string) {
 		super(app);
+		this.plugin = plugin;
 		this.basePath = basePath;
 	}
 
@@ -464,7 +484,7 @@ class SetupWizardModal extends Modal {
 			void (async () => {
 				step1Result.setText(t("wizardStep1Checking"));
 				step1Result.className = "wizard-result";
-				const res = await getGitVersion();
+				const res = await getGitVersion(this.plugin.settings.customGitPath);
 				if (res.success) {
 					step1Result.setText(
 						t("wizardStep1Success", { version: res.version ?? "" }),
@@ -500,7 +520,10 @@ class SetupWizardModal extends Modal {
 			void (async () => {
 				step2Result.setText(t("wizardStep2Creating"));
 				step2Result.className = "wizard-result";
-				const res = await initGitRepo(this.basePath);
+				const res = await initGitRepo(
+					this.basePath,
+					this.plugin.settings.customGitPath,
+				);
 				step2Result.setText(res.message);
 				step2Result.addClass(res.success ? "wizard-success" : "wizard-error");
 			})();
@@ -537,6 +560,7 @@ class SetupWizardModal extends Modal {
 					this.basePath,
 					this.remoteUrl,
 					commitMsg,
+					this.plugin.settings.customGitPath,
 				);
 				step3Result.setText(res.message);
 				step3Result.addClass(res.success ? "wizard-success" : "wizard-error");
@@ -604,11 +628,21 @@ class GitFacilSettingTab extends PluginSettingTab {
 					min: 1,
 				},
 			},
+			{
+				name: t("customGitPathName"),
+				desc: t("customGitPathDesc"),
+				control: {
+					type: "text",
+					key: "customGitPath",
+					defaultValue: DEFAULT_SETTINGS.customGitPath,
+					placeholder: t("customGitPathPlaceholder"),
+				},
+			},
 		];
 	}
 
 	override async setControlValue(key: string, value: unknown): Promise<void> {
-		(this.plugin.settings as Record<string, unknown>)[key] = value;
+		(this.plugin.settings as unknown as Record<string, unknown>)[key] = value;
 		await this.plugin.saveSettings();
 	}
 }
