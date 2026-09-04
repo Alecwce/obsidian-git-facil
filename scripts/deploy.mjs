@@ -47,11 +47,6 @@ function getDestinationDir() {
 		return resolve(join(vault, ".obsidian", "plugins", "git-facil"));
 	}
 
-	// 4. Fallback legacy solo en Windows
-	if (process.platform === "win32") {
-		return "D:\\z\\OBS\\MI CEREBRO II\\.obsidian\\plugins\\git-facil";
-	}
-
 	return null;
 }
 

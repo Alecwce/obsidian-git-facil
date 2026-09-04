@@ -3,11 +3,13 @@ import {
 	commitAndPushSelectedFiles,
 	getCommitMessage,
 	getCurrentBranch,
+	getGitStatusResult,
 	getGitVersion,
 	hasGitRemote,
 	initGitRepo,
 	isGitInstalled,
 	isGitRepo,
+	isPushRejectedMessage,
 	parseGitStatusPorcelain,
 	parsePorcelainOutput,
 	pullGitChanges,
@@ -211,6 +213,22 @@ describe("gitHelper panel lateral y anti-pánico", () => {
 		expect(res.success).toBe(false);
 		expect(res.message).toContain("Conflict during rebase");
 		mockFailRebase = false;
+	});
+
+	it("debería distinguir ok vs error en getGitStatusResult (no falso limpio)", async () => {
+		const res = await getGitStatusResult("/fake/path");
+		expect(res.ok).toBe(true);
+		expect(res.files).toHaveLength(2);
+		expect(res.error).toBeUndefined();
+	});
+
+	it("debería detectar mensajes de push rechazado de forma centralizada", () => {
+		expect(isPushRejectedMessage("error: failed to push some refs")).toBe(true);
+		expect(
+			isPushRejectedMessage("! [rejected] main -> main (fetch first)"),
+		).toBe(true);
+		expect(isPushRejectedMessage("non-fast-forward")).toBe(true);
+		expect(isPushRejectedMessage("Everything up-to-date")).toBe(false);
 	});
 });
 

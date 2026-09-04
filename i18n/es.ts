@@ -40,6 +40,7 @@ export const es = {
 	noticeNothingToPush: "Nada que subir ✅",
 	noticeCommitting: "Comitiendo...",
 	noticeCommitPushSuccess: "✅ Commit y push exitosos",
+	noticeSyncBusy: "⏳ Ya hay una sincronización en curso...",
 	noticeError: "❌ Error: {msg}",
 
 	// Side Panel (GitStatusView)
@@ -52,6 +53,9 @@ export const es = {
 	statusPanelCommitSelectedBtn: "🚀 Commit y push de lo marcado",
 	statusPanelSelectAtLeastOne: "❌ Selecciona al menos un archivo.",
 	statusPanelCommittingSelected: "Comitiendo archivos marcados...",
+	statusPanelErrorTitle: "❌ No se pudo leer el estado de Git",
+	statusPanelErrorDesc:
+		"Revisa que Git esté instalado y que la bóveda sea un repositorio válido.",
 
 	// Pull Notice Results
 	pullNoNewChanges: "✅ Sin cambios nuevos",

@@ -39,6 +39,7 @@ export const en: Record<TranslationKeys, string> = {
 	noticeNothingToPush: "Nothing to push ✅",
 	noticeCommitting: "Committing...",
 	noticeCommitPushSuccess: "✅ Commit and push successful",
+	noticeSyncBusy: "⏳ A sync is already in progress...",
 	noticeError: "❌ Error: {msg}",
 
 	// Side Panel (GitStatusView)
@@ -51,6 +52,9 @@ export const en: Record<TranslationKeys, string> = {
 	statusPanelCommitSelectedBtn: "🚀 Commit & push selected",
 	statusPanelSelectAtLeastOne: "❌ Select at least one file.",
 	statusPanelCommittingSelected: "Committing selected files...",
+	statusPanelErrorTitle: "❌ Could not read Git status",
+	statusPanelErrorDesc:
+		"Check that Git is installed and the vault is a valid repository.",
 
 	// Pull Notice Results
 	pullNoNewChanges: "✅ No new changes",
