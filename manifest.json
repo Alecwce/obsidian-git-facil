@@ -1,7 +1,7 @@
 {
 	"id": "git-facil",
 	"name": "GitFacil",
-	"version": "1.4.1",
+	"version": "1.4.2",
 	"minAppVersion": "1.13.0",
 	"description": "One-click commit & push for your vault: step-by-step setup wizard, status panel with checkboxes, pull button and auto-backup. Simple Git for non-developers. (UI: Spanish/English).",
 	"author": "Alexwce",

@@ -8,7 +8,7 @@
 
 1. **Git installed / Tener Git instalado:** Download from [git-scm.com](https://git-scm.com).
 2. **Git repository initialized / Repositorio inicializado:** Run `git init` in your vault root folder.
-3. **Remote repository configured / Repositorio remoto:** Run `git remote add origin <URL>`.
+3. **Remote repository configured / Repositorio remoto:** Run `git remote add origin https://github.com/tu-usuario/tu-repo.git` (with your real repository URL).
 
 ---
 
@@ -56,7 +56,7 @@
 | :--- | :--- | :--- |
 | `❌ No se encontró Git` | Git not found in PATH | Install Git from [git-scm.com](https://git-scm.com) |
 | `❌ Tu bóveda no es un repositorio Git` | Vault not initialized | Run `git init` or use Setup Wizard |
-| `❌ No hay remote` | No remote repository | Run `git remote add origin <URL>` |
+| `❌ No hay remote` | No remote repository | Run `git remote add origin https://github.com/tu-usuario/tu-repo.git` |
 
 ---
 
