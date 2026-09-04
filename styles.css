@@ -54,6 +54,10 @@
 	margin-bottom: 12px;
 }
 
+.git-facil-wizard .wizard-input-error {
+	border-color: var(--text-error);
+}
+
 /* Panel de Estado de Git */
 .git-facil-status-view {
 	padding: 12px;

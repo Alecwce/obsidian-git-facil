@@ -21,6 +21,23 @@ export function isPushRejectedMessage(msg: string): boolean {
 	);
 }
 
+const GIT_REMOTE_URL_RE =
+	/^(https:\/\/[A-Za-z0-9.-]+\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(\.git)?\/?|git@[A-Za-z0-9.-]+:[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(\.git)?)$/;
+
+export function isValidGitRemoteUrl(url: string): boolean {
+	const trimmed = url.trim();
+	if (!trimmed || /\s/.test(trimmed) || trimmed.startsWith("-")) return false;
+	return GIT_REMOTE_URL_RE.test(trimmed);
+}
+
+export async function hasUncommittedChanges(
+	cwd: string,
+	gitPath?: string,
+): Promise<boolean> {
+	const res = await getGitStatusResult(cwd, gitPath);
+	return res.ok && res.files.length > 0;
+}
+
 export interface GitChangedFile {
 	status: string;
 	path: string;
@@ -150,6 +167,12 @@ export async function setupRemoteAndFirstCommit(
 		return {
 			success: false,
 			message: t("wizardStep3ErrorEmpty"),
+		};
+	}
+	if (!isValidGitRemoteUrl(trimmedUrl)) {
+		return {
+			success: false,
+			message: t("wizardStep3ErrorInvalid"),
 		};
 	}
 
@@ -305,8 +328,17 @@ export async function syncAndAlignWithRemote(
 	gitPath?: string,
 ): Promise<{ success: boolean; message: string }> {
 	const git = resolveGit(gitPath);
+	let stashed = false;
 	try {
 		const branch = await getCurrentBranch(cwd, gitPath);
+		if (await hasUncommittedChanges(cwd, gitPath)) {
+			await execFileAsync(
+				git,
+				["stash", "push", "-u", "-m", "gitfacil-autostash"],
+				gitOpts(cwd),
+			);
+			stashed = true;
+		}
 		await execFileAsync(git, ["fetch", "origin"], gitOpts(cwd));
 		try {
 			await execFileAsync(
@@ -321,9 +353,30 @@ export async function syncAndAlignWithRemote(
 			} catch {
 				// Ignorar error al abortar
 			}
+			if (stashed) {
+				try {
+					await execFileAsync(git, ["stash", "pop"], gitOpts(cwd));
+				} catch {
+					// El error original del pull es más importante; el stash queda guardado
+				}
+				stashed = false;
+			}
 			throw pullError;
 		}
 		await execFileAsync(git, ["push", "origin", branch], gitOpts(cwd));
+		if (stashed) {
+			try {
+				await execFileAsync(git, ["stash", "pop"], gitOpts(cwd));
+			} catch (popError) {
+				const msg =
+					popError instanceof Error ? popError.message : String(popError);
+				return {
+					success: false,
+					message: t("gitHelperStashPopConflict", { msg }),
+				};
+			}
+			stashed = false;
+		}
 		return {
 			success: true,
 			message: t("gitHelperSyncSuccess"),

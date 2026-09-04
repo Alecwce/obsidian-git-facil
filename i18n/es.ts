@@ -103,6 +103,10 @@ export const es = {
 	gitHelperSyncSuccess:
 		"✅ Historia alineada con GitHub e intento de push exitoso",
 	gitHelperSyncError: "❌ Error al sincronizar con GitHub: {msg}",
+	gitHelperStashPopConflict:
+		"⚠️ Sincronizado con GitHub pero no se pudo restaurar tus cambios locales: {msg}. Revisa con: git stash list.",
+	wizardStep3ErrorInvalid:
+		"❌ URL inválida. Usa https://github.com/usuario/repo(.git) o git@github.com:usuario/repo.git",
 };
 
 export type TranslationKeys = keyof typeof es;
