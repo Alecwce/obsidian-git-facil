@@ -6,10 +6,12 @@ import {
 	getGitStatusResult,
 	getGitVersion,
 	hasGitRemote,
+	hasUncommittedChanges,
 	initGitRepo,
 	isGitInstalled,
 	isGitRepo,
 	isPushRejectedMessage,
+	isValidGitRemoteUrl,
 	parseGitStatusPorcelain,
 	parsePorcelainOutput,
 	pullGitChanges,
@@ -22,6 +24,8 @@ import { es } from "./i18n/es";
 import { setLanguage, t } from "./i18n/index";
 
 let mockFailRebase = false;
+let mockCleanStatus = false;
+let mockFailStashPop = false;
 
 vi.mock("node:child_process", () => ({
 	execFile: (
@@ -52,7 +56,19 @@ vi.mock("node:child_process", () => ({
 			return;
 		}
 		if (args.includes("status") && args.includes("--porcelain")) {
+			if (mockCleanStatus) {
+				cb(null, { stdout: "" });
+				return;
+			}
 			cb(null, { stdout: " M main.ts\n?? note.md" });
+			return;
+		}
+		if (args[0] === "stash") {
+			if (args[1] === "pop" && mockFailStashPop) {
+				cb(new Error("CONFLICT (content): stash pop failed"), { stdout: "" });
+				return;
+			}
+			cb(null, { stdout: "" });
 			return;
 		}
 		if (args[0] === "pull") {
@@ -215,6 +231,27 @@ describe("gitHelper panel lateral y anti-pánico", () => {
 		mockFailRebase = false;
 	});
 
+	it("debería sincronizar sin stash cuando el árbol está limpio", async () => {
+		mockCleanStatus = true;
+		mockFailRebase = false;
+		mockFailStashPop = false;
+		const dirty = await hasUncommittedChanges("/fake/path");
+		expect(dirty).toBe(false);
+		const res = await syncAndAlignWithRemote("/fake/path");
+		expect(res.success).toBe(true);
+		mockCleanStatus = false;
+	});
+
+	it("debería reportar conflicto honesto si el stash pop falla tras push", async () => {
+		mockCleanStatus = false;
+		mockFailRebase = false;
+		mockFailStashPop = true;
+		const res = await syncAndAlignWithRemote("/fake/path");
+		expect(res.success).toBe(false);
+		expect(res.message).toContain("stash");
+		mockFailStashPop = false;
+	});
+
 	it("debería distinguir ok vs error en getGitStatusResult (no falso limpio)", async () => {
 		const res = await getGitStatusResult("/fake/path");
 		expect(res.ok).toBe(true);
@@ -278,5 +315,30 @@ describe("gitHelper comprobaciones de entorno y wizard", () => {
 		);
 		expect(res.success).toBe(true);
 		expect(res.message).toContain("exitosamente");
+	});
+
+	it("debería rechazar URLs remotas inválidas sin tocar git", async () => {
+		for (const bad of [
+			"ftp://github.com/user/repo.git",
+			"--upload-pack=evil",
+			"not a url",
+			"https://",
+		]) {
+			const res = await setupRemoteAndFirstCommit(
+				"/fake/path",
+				bad,
+				"initial commit",
+			);
+			expect(res.success).toBe(false);
+		}
+	});
+
+	it("debería validar URLs https y ssh correctamente", () => {
+		expect(isValidGitRemoteUrl("https://github.com/user/repo.git")).toBe(true);
+		expect(isValidGitRemoteUrl("https://github.com/user/repo")).toBe(true);
+		expect(isValidGitRemoteUrl("git@github.com:user/repo.git")).toBe(true);
+		expect(isValidGitRemoteUrl("ftp://github.com/user/repo.git")).toBe(false);
+		expect(isValidGitRemoteUrl("--upload-pack=evil")).toBe(false);
+		expect(isValidGitRemoteUrl("   ")).toBe(false);
 	});
 });

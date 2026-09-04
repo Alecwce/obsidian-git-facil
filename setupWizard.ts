@@ -3,6 +3,7 @@ import {
 	getCommitMessage,
 	getGitVersion,
 	initGitRepo,
+	isValidGitRemoteUrl,
 	setupRemoteAndFirstCommit,
 } from "./gitHelper";
 import { t } from "./i18n";
@@ -112,15 +113,29 @@ export class SetupWizardModal extends Modal {
 			placeholder: t("wizardStep3Placeholder"),
 			cls: "wizard-input",
 		});
-		inputEl.addEventListener("input", (e) => {
-			this.remoteUrl = (e.target as HTMLInputElement).value;
-		});
-
 		const step3Result = step3Container.createDiv({ cls: "wizard-result" });
 
 		const btn3 = step3Container.createEl("button", {
 			text: t("wizardStep3Btn"),
 			cls: "mod-cta",
+		});
+		btn3.disabled = true;
+		const validateRemoteInput = () => {
+			const ok =
+				this.remoteUrl.trim().length > 0 && isValidGitRemoteUrl(this.remoteUrl);
+			btn3.disabled = !ok;
+			inputEl.toggleClass("wizard-input-error", !ok);
+			if (!ok && this.remoteUrl.trim().length > 0) {
+				step3Result.setText(t("wizardStep3ErrorInvalid"));
+				step3Result.className = "wizard-result wizard-error";
+			} else if (ok) {
+				step3Result.setText("");
+				step3Result.className = "wizard-result";
+			}
+		};
+		inputEl.addEventListener("input", (e) => {
+			this.remoteUrl = (e.target as HTMLInputElement).value;
+			validateRemoteInput();
 		});
 		btn3.addEventListener("click", () => {
 			void (async () => {

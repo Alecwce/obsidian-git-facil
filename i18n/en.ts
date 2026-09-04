@@ -100,4 +100,8 @@ export const en: Record<TranslationKeys, string> = {
 	gitHelperSyncSuccess:
 		"✅ History aligned with GitHub and push attempt successful",
 	gitHelperSyncError: "❌ Error syncing with GitHub: {msg}",
+	gitHelperStashPopConflict:
+		"⚠️ Synced with GitHub but could not restore your local changes: {msg}. Check with: git stash list.",
+	wizardStep3ErrorInvalid:
+		"❌ Invalid URL. Use https://github.com/user/repo(.git) or git@github.com:user/repo.git",
 };
