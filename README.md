@@ -14,7 +14,8 @@
 
 ## Installation / Instalación
 
-### Option 1: Community Plugin Directory (Recommended)
+### Option 1: Community Plugin Directory (Coming soon / Próximamente)
+> Under review for the official directory. Meanwhile, use Option 2 or 3.
 1. Open Obsidian **Settings** -> **Community plugins**.
 2. Search for **GitFacil** and click **Install**.
 3. Enable the plugin.
