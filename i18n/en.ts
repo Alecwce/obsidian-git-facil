@@ -87,6 +87,8 @@ export const en: Record<TranslationKeys, string> = {
 	wizardStep3Title: "STEP 3: Connect with GitHub",
 	wizardStep3Desc:
 		"Paste your GitHub repository address (example: https://github.com/user/repo.git):",
+	wizardStep3Privacy:
+		"🔐 Everything Git tracks in your vault will be uploaded to that remote. Use a PRIVATE repository if your notes must stay private.",
 	wizardStep3Placeholder: "https://github.com/your-username/your-repo.git",
 	wizardStep3Btn: "Connect & make first commit",
 	wizardStep3Connecting: "Connecting and uploading your notes...",

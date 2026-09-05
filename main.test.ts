@@ -7,6 +7,8 @@ import {
 	getGitStatusResult,
 	getGitVersion,
 	hasGitRemote,
+	hasOriginRemote,
+	hasStagedChanges,
 	hasUncommittedChanges,
 	initGitRepo,
 	isGitInstalled,
@@ -28,6 +30,10 @@ let mockFailRebase = false;
 let mockCleanStatus = false;
 let mockFailStashPop = false;
 let mockNoUpstream = false;
+let mockPrestaged = false;
+let mockNoOrigin = false;
+let mockBranch = "main";
+const mockCalls: string[][] = [];
 
 vi.mock("node:child_process", () => ({
 	execFile: (
@@ -41,6 +47,8 @@ vi.mock("node:child_process", () => ({
 			stdout: { stdout: string },
 		) => void;
 
+		mockCalls.push([...args]);
+
 		if (args.includes("--version")) {
 			cb(null, { stdout: "git version 2.40.0" });
 			return;
@@ -50,7 +58,15 @@ vi.mock("node:child_process", () => ({
 			return;
 		}
 		if (args.includes("--abbrev-ref")) {
-			cb(null, { stdout: "main\n" });
+			cb(null, { stdout: `${mockBranch}\n` });
+			return;
+		}
+		if (args[0] === "remote" && args[1] === "get-url") {
+			if (mockNoOrigin) {
+				cb(new Error("fatal: No such remote 'origin'"), { stdout: "" });
+				return;
+			}
+			cb(null, { stdout: "https://github.com/user/repo.git" });
 			return;
 		}
 		if (args[0] === "rev-list") {
@@ -78,6 +94,14 @@ vi.mock("node:child_process", () => ({
 		if (args[0] === "stash") {
 			if (args[1] === "pop" && mockFailStashPop) {
 				cb(new Error("CONFLICT (content): stash pop failed"), { stdout: "" });
+				return;
+			}
+			cb(null, { stdout: "" });
+			return;
+		}
+		if (args[0] === "diff" && args.includes("--cached")) {
+			if (mockPrestaged) {
+				cb(new Error("staged changes present"), { stdout: "" });
 				return;
 			}
 			cb(null, { stdout: "" });
@@ -198,6 +222,7 @@ describe("gitHelper panel lateral y anti-pánico", () => {
 	});
 
 	it("debería hacer commit y push de archivos marcados", async () => {
+		mockCalls.length = 0;
 		const res = await commitAndPushSelectedFiles(
 			"/fake/path",
 			["main.ts"],
@@ -205,6 +230,37 @@ describe("gitHelper panel lateral y anti-pánico", () => {
 		);
 		expect(res.success).toBe(true);
 		expect(res.message).toContain("exitoso");
+		// Sin staged ajeno: sin stash en la secuencia
+		expect(mockCalls.some((c) => c[0] === "stash")).toBe(false);
+	});
+
+	it("debería proteger staged ajenos: stash --staged, add, commit, push, pop", async () => {
+		mockPrestaged = true;
+		mockFailStashPop = false;
+		mockCalls.length = 0;
+		const res = await commitAndPushSelectedFiles(
+			"/fake/path",
+			["main.ts"],
+			"commit msg",
+		);
+		expect(res.success).toBe(true);
+		const seq = mockCalls.map((c) => c.slice(0, 2).join(" "));
+		expect(seq).toEqual([
+			"diff --cached",
+			"stash push",
+			"add --",
+			"commit -m",
+			"push",
+			"stash pop",
+		]);
+		mockPrestaged = false;
+	});
+
+	it("debería detectar staged ajenos con hasStagedChanges", async () => {
+		mockPrestaged = true;
+		expect(await hasStagedChanges("/fake/path")).toBe(true);
+		mockPrestaged = false;
+		expect(await hasStagedChanges("/fake/path")).toBe(false);
 	});
 
 	it("debería retornar error si no se selecciona ningún archivo", async () => {
@@ -335,6 +391,28 @@ describe("gitHelper comprobaciones de entorno y wizard", () => {
 	it("debería detectar si el repositorio tiene remote", async () => {
 		const remote = await hasGitRemote("/fake/path");
 		expect(remote).toBe(true);
+	});
+
+	it("debería distinguir origin de otros remotos", async () => {
+		mockNoOrigin = false;
+		expect(await hasOriginRemote("/fake/path")).toBe(true);
+		mockNoOrigin = true;
+		expect(await hasOriginRemote("/fake/path")).toBe(false);
+		mockNoOrigin = false;
+	});
+
+	it("debería empujar a la rama actual, no asumir main", async () => {
+		mockBranch = "notes";
+		mockCalls.length = 0;
+		const res = await setupRemoteAndFirstCommit(
+			"/fake/path",
+			"https://github.com/user/repo.git",
+			"initial commit",
+		);
+		expect(res.success).toBe(true);
+		const push = mockCalls.find((c) => c[0] === "push");
+		expect(push).toEqual(["push", "-u", "origin", "notes"]);
+		mockBranch = "main";
 	});
 
 	it("debería retornar error si la URL remota está vacía", async () => {

@@ -76,6 +76,7 @@ En ajustes activa **Auto-sync** y el intervalo en minutos: el plugin sube tus ca
 ## 8. Preguntas / FAQ
 
 - **¿Mis notas salen de mi máquina?** Solo hacia tu propio repositorio Git (GitHub o el que configures). El plugin no envía nada a terceros.
+- **🔐 ¿Mis notas serán públicas?** Depende de tu repositorio: todo lo que Git rastree en tu bóveda se sube al remoto. Usa un repositorio **privado** si tus notas no deben ser públicas, y revisa con `git status` qué se rastrea antes del primer push.
 - **¿Funciona en móvil?** No, es solo escritorio (`isDesktopOnly`): necesita Git instalado en el sistema.
 - **¿Qué pasa si edito mientras sincroniza?** Nada malo: el auto-sync se salta esa ronda y la siguiente lo sube.
 - **¿Dónde reporto errores?** En [Issues](https://github.com/Alecwce/obsidian-git-facil/issues) con la versión del plugin, de Obsidian y tu sistema.
