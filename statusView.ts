@@ -1,7 +1,9 @@
 import { ItemView, Notice, type WorkspaceLeaf } from "obsidian";
 import {
 	commitAndPushSelectedFiles,
+	getAheadBehind,
 	getCommitMessage,
+	getCurrentBranch,
 	getGitStatusResult,
 	pullGitChanges,
 } from "./gitHelper";
@@ -43,6 +45,22 @@ export class GitStatusView extends ItemView {
 
 		const header = containerEl.createDiv({ cls: "status-view-header" });
 		const titleEl = header.createEl("h3", { text: t("statusPanelTitle") });
+
+		const branchLine = header.createEl("span", { cls: "status-branch-line" });
+		void (async () => {
+			const bp = getVaultBasePath(this.app);
+			if (!bp) return;
+			const gitPath = this.plugin.settings.customGitPath;
+			const [branch, { ahead, behind, hasUpstream }] = await Promise.all([
+				getCurrentBranch(bp, gitPath),
+				getAheadBehind(bp, gitPath),
+			]);
+			branchLine.setText(
+				hasUpstream
+					? t("statusPanelBranchLine", { branch, ahead, behind })
+					: t("statusPanelBranchNoUpstream", { branch }),
+			);
+		})();
 
 		const refreshIconBtn = titleEl.createEl("button", {
 			text: "🔄",

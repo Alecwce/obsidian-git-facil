@@ -85,6 +85,12 @@
 	margin-left: 6px;
 }
 
+.git-facil-status-view .status-branch-line {
+	font-size: 0.85em;
+	color: var(--text-muted);
+	font-family: var(--font-monospace);
+}
+
 .git-facil-status-view .status-view-actions {
 	display: flex;
 	gap: 8px;

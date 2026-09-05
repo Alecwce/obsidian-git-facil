@@ -45,6 +45,8 @@ export const es = {
 
 	// Side Panel (GitStatusView)
 	statusPanelTitle: "📊 Estado de Git",
+	statusPanelBranchLine: "{branch} ↑{ahead} ↓{behind}",
+	statusPanelBranchNoUpstream: "{branch} (sin remoto)",
 	statusPanelRefreshBtn: "🔄 Actualizar lista",
 	statusPanelPullBtn: "⬇️ Bajar cambios (Pull)",
 	statusPanelPulling: "Bajando cambios...",
