@@ -104,6 +104,36 @@ export async function getCurrentBranch(
 	}
 }
 
+export interface AheadBehind {
+	ahead: number;
+	behind: number;
+	hasUpstream: boolean;
+}
+
+export async function getAheadBehind(
+	cwd: string,
+	gitPath?: string,
+): Promise<AheadBehind> {
+	const git = resolveGit(gitPath);
+	try {
+		const { stdout } = await execFileAsync(
+			git,
+			["rev-list", "--left-right", "--count", "@{u}...HEAD"],
+			gitOpts(cwd),
+		);
+		const [behindRaw, aheadRaw] = stdout.trim().split(/\s+/);
+		const behind = Number.parseInt(behindRaw ?? "0", 10);
+		const ahead = Number.parseInt(aheadRaw ?? "0", 10);
+		return {
+			ahead: Number.isNaN(ahead) ? 0 : ahead,
+			behind: Number.isNaN(behind) ? 0 : behind,
+			hasUpstream: true,
+		};
+	} catch {
+		return { ahead: 0, behind: 0, hasUpstream: false };
+	}
+}
+
 export async function isGitRepo(
 	cwd: string,
 	gitPath?: string,

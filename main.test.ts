@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
 	commitAndPushSelectedFiles,
+	getAheadBehind,
 	getCommitMessage,
 	getCurrentBranch,
 	getGitStatusResult,
@@ -26,6 +27,7 @@ import { setLanguage, t } from "./i18n/index";
 let mockFailRebase = false;
 let mockCleanStatus = false;
 let mockFailStashPop = false;
+let mockNoUpstream = false;
 
 vi.mock("node:child_process", () => ({
 	execFile: (
@@ -49,6 +51,16 @@ vi.mock("node:child_process", () => ({
 		}
 		if (args.includes("--abbrev-ref")) {
 			cb(null, { stdout: "main\n" });
+			return;
+		}
+		if (args[0] === "rev-list") {
+			if (mockNoUpstream) {
+				cb(new Error("fatal: no upstream configured for branch 'main'"), {
+					stdout: "",
+				});
+				return;
+			}
+			cb(null, { stdout: "1\t2" });
 			return;
 		}
 		if (args[0] === "remote") {
@@ -266,6 +278,34 @@ describe("gitHelper panel lateral y anti-pánico", () => {
 		).toBe(true);
 		expect(isPushRejectedMessage("non-fast-forward")).toBe(true);
 		expect(isPushRejectedMessage("Everything up-to-date")).toBe(false);
+	});
+
+	it("debería reportar ahead/behind contra el upstream", async () => {
+		mockNoUpstream = false;
+		const res = await getAheadBehind("/fake/path");
+		expect(res).toEqual({ ahead: 2, behind: 1, hasUpstream: true });
+	});
+
+	it("debería marcar sin upstream cuando rev-list falla", async () => {
+		mockNoUpstream = true;
+		const res = await getAheadBehind("/fake/path");
+		expect(res).toEqual({ ahead: 0, behind: 0, hasUpstream: false });
+		mockNoUpstream = false;
+	});
+
+	it("debería formatear la línea de rama con i18n ES/EN", () => {
+		setLanguage("es");
+		expect(
+			t("statusPanelBranchLine", { branch: "main", ahead: 2, behind: 1 }),
+		).toBe("main ↑2 ↓1");
+		expect(t("statusPanelBranchNoUpstream", { branch: "main" })).toBe(
+			"main (sin remoto)",
+		);
+		setLanguage("en");
+		expect(t("statusPanelBranchNoUpstream", { branch: "main" })).toBe(
+			"main (no remote)",
+		);
+		setLanguage("es");
 	});
 });
 

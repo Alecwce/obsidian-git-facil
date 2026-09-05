@@ -44,6 +44,8 @@ export const en: Record<TranslationKeys, string> = {
 
 	// Side Panel (GitStatusView)
 	statusPanelTitle: "📊 Git Status",
+	statusPanelBranchLine: "{branch} ↑{ahead} ↓{behind}",
+	statusPanelBranchNoUpstream: "{branch} (no remote)",
 	statusPanelRefreshBtn: "🔄 Refresh list",
 	statusPanelPullBtn: "⬇️ Pull changes",
 	statusPanelPulling: "Pulling changes...",
