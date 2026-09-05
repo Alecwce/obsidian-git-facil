@@ -107,6 +107,10 @@ export class SetupWizardModal extends Modal {
 		step3Container.createEl("p", {
 			text: t("wizardStep3Desc"),
 		});
+		step3Container.createEl("p", {
+			text: t("wizardStep3Privacy"),
+			cls: "wizard-privacy",
+		});
 
 		const inputEl = step3Container.createEl("input", {
 			type: "text",

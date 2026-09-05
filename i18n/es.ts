@@ -89,6 +89,8 @@ export const es = {
 	wizardStep3Title: "PASO 3: Conectar con GitHub",
 	wizardStep3Desc:
 		"Pega la dirección de tu repositorio de GitHub (ejemplo: https://github.com/usuario/repo.git):",
+	wizardStep3Privacy:
+		"🔐 Todo lo que Git rastree en tu bóveda se subirá a ese remoto. Usa un repositorio PRIVADO si tus notas no deben ser públicas.",
 	wizardStep3Placeholder: "https://github.com/tu-usuario/tu-repositorio.git",
 	wizardStep3Btn: "Conectar y hacer primer commit",
 	wizardStep3Connecting: "Conectando y subiendo tus notas...",

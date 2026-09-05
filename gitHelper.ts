@@ -185,6 +185,19 @@ export async function hasGitRemote(
 	}
 }
 
+export async function hasOriginRemote(
+	cwd: string,
+	gitPath?: string,
+): Promise<boolean> {
+	const git = resolveGit(gitPath);
+	try {
+		await execFileAsync(git, ["remote", "get-url", "origin"], gitOpts(cwd));
+		return true;
+	} catch {
+		return false;
+	}
+}
+
 export async function setupRemoteAndFirstCommit(
 	cwd: string,
 	remoteUrl: string,
@@ -207,8 +220,8 @@ export async function setupRemoteAndFirstCommit(
 	}
 
 	try {
-		const remoteExists = await hasGitRemote(cwd, gitPath);
-		if (remoteExists) {
+		const originExists = await hasOriginRemote(cwd, gitPath);
+		if (originExists) {
 			await execFileAsync(
 				git,
 				["remote", "set-url", "origin", trimmedUrl],
@@ -230,7 +243,8 @@ export async function setupRemoteAndFirstCommit(
 			// Si no hay cambios pendientes, continuar al push
 		}
 
-		await execFileAsync(git, ["push", "-u", "origin", "main"], gitOpts(cwd));
+		const branch = await getCurrentBranch(cwd, gitPath);
+		await execFileAsync(git, ["push", "-u", "origin", branch], gitOpts(cwd));
 
 		return {
 			success: true,
@@ -296,6 +310,19 @@ export async function parseGitStatusPorcelain(
 	return res.files;
 }
 
+export async function hasStagedChanges(
+	cwd: string,
+	gitPath?: string,
+): Promise<boolean> {
+	const git = resolveGit(gitPath);
+	try {
+		await execFileAsync(git, ["diff", "--cached", "--quiet"], gitOpts(cwd));
+		return false;
+	} catch {
+		return true;
+	}
+}
+
 export async function commitAndPushSelectedFiles(
 	cwd: string,
 	filePaths: string[],
@@ -310,15 +337,46 @@ export async function commitAndPushSelectedFiles(
 		};
 	}
 
+	// Protege cambios ya staged por fuera: commit solo debe incluir lo marcado.
+	let stashedIndex = false;
 	try {
+		if (await hasStagedChanges(cwd, gitPath)) {
+			await execFileAsync(
+				git,
+				["stash", "push", "--staged", "-m", "gitfacil-index"],
+				gitOpts(cwd),
+			);
+			stashedIndex = true;
+		}
 		await execFileAsync(git, ["add", "--", ...filePaths], gitOpts(cwd));
 		await execFileAsync(git, ["commit", "-m", commitMessage], gitOpts(cwd));
 		await execFileAsync(git, ["push"], gitOpts(cwd));
+		if (stashedIndex) {
+			try {
+				await execFileAsync(git, ["stash", "pop"], gitOpts(cwd));
+			} catch (popError) {
+				const msg =
+					popError instanceof Error ? popError.message : String(popError);
+				return {
+					success: false,
+					message: t("gitHelperStashPopConflict", { msg }),
+				};
+			}
+			stashedIndex = false;
+		}
 		return {
 			success: true,
 			message: t("gitHelperCommitSelectedSuccess"),
 		};
 	} catch (error) {
+		if (stashedIndex) {
+			try {
+				await execFileAsync(git, ["stash", "pop"], gitOpts(cwd));
+			} catch {
+				// El error original manda; el stash queda guardado
+			}
+			stashedIndex = false;
+		}
 		const msg = error instanceof Error ? error.message : String(error);
 		const isPushRejected = isPushRejectedMessage(msg);
 

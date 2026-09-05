@@ -2,7 +2,7 @@ import { Notice, Plugin, type WorkspaceLeaf } from "obsidian";
 import {
 	checkGitStatusPorcelain,
 	getCommitMessage,
-	hasGitRemote,
+	hasOriginRemote,
 	isGitInstalled,
 	isGitRepo,
 	isPushRejectedMessage,
@@ -204,7 +204,7 @@ export default class GitFacilPlugin extends Plugin {
 				return;
 			}
 
-			const remoteExists = await hasGitRemote(basePath, gitPath);
+			const remoteExists = await hasOriginRemote(basePath, gitPath);
 			if (!remoteExists) {
 				new Notice(t("errNoRemote"));
 				return;
