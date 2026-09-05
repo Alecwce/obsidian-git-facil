@@ -4,6 +4,22 @@
 
 📖 **Manual completo / Full manual:** [MANUAL.md](MANUAL.md).
 
+![Git status panel](docs/panel-commit.gif)
+
+## Why GitFacil? / ¿Por qué GitFacil?
+
+| GitFacil                         | Git CLI |
+| -------------------------------- | ------- |
+| One-click backup                 | ✅ |
+| Setup wizard, no terminal needed  | ✅ |
+| Status panel with file selection | ✅ |
+| Auto backup every N minutes      | ✅ |
+| Advanced Git operations          | ❌ |
+| Mobile support                   | ❌ |
+| Real-time sync                   | ❌ |
+
+**Limitations:** desktop only (needs system Git), no diff viewer, no history browser, no conflict editor — on push conflicts use the guided sync button.
+
 ---
 
 ## 📋 Prerequisites / Requisitos

@@ -1,13 +1,15 @@
 import { execFile } from "node:child_process";
+import process from "node:process";
 import { promisify } from "node:util";
 import { t } from "./i18n";
 
 const execFileAsync = promisify(execFile);
 
 const GIT_TIMEOUT_MS = 30_000;
+const GIT_REMOTE_TIMEOUT_MS = 120_000;
 
-function gitOpts(cwd: string) {
-	return { cwd, timeout: GIT_TIMEOUT_MS };
+function gitOpts(cwd: string, remote = false) {
+	return { cwd, timeout: remote ? GIT_REMOTE_TIMEOUT_MS : GIT_TIMEOUT_MS };
 }
 
 export function isPushRejectedMessage(msg: string): boolean {
@@ -134,6 +136,101 @@ export async function getAheadBehind(
 	}
 }
 
+export interface CleanSyncResult {
+	pulled: boolean;
+	behind: number;
+	error?: string;
+}
+
+// Árbol limpio: fetch + pull si el remoto va por delante. Sin cambios
+// locales no puede haber conflicto de rebase; ante cualquier fallo se
+// aborta y se reporta sin tocar nada.
+export async function syncCleanTree(
+	cwd: string,
+	gitPath?: string,
+): Promise<CleanSyncResult> {
+	const git = resolveGit(gitPath);
+	try {
+		const branch = await getCurrentBranch(cwd, gitPath);
+		await execFileAsync(git, ["fetch", "origin"], gitOpts(cwd, true));
+		const { behind, hasUpstream } = await getAheadBehind(cwd, gitPath);
+		if (!hasUpstream || behind === 0) {
+			return { pulled: false, behind: 0 };
+		}
+		try {
+			await execFileAsync(
+				git,
+				["pull", "--rebase", "origin", branch],
+				gitOpts(cwd, true),
+			);
+		} catch (pullError) {
+			try {
+				await execFileAsync(git, ["rebase", "--abort"], gitOpts(cwd));
+			} catch {
+				// Ignorar error al abortar
+			}
+			const msg =
+				pullError instanceof Error ? pullError.message : String(pullError);
+			return { pulled: false, behind, error: msg };
+		}
+		return { pulled: true, behind };
+	} catch (error) {
+		const msg = error instanceof Error ? error.message : String(error);
+		return { pulled: false, behind: 0, error: msg };
+	}
+}
+
+export interface GitIdentity {
+	name: string;
+	email: string;
+}
+
+export async function getGitIdentity(
+	cwd: string,
+	gitPath?: string,
+): Promise<GitIdentity> {
+	const git = resolveGit(gitPath);
+	async function config(key: string): Promise<string> {
+		try {
+			const { stdout } = await execFileAsync(
+				git,
+				["config", key],
+				gitOpts(cwd),
+			);
+			return stdout.trim();
+		} catch {
+			return "";
+		}
+	}
+	return {
+		name: await config("user.name"),
+		email: await config("user.email"),
+	};
+}
+
+// Comprueba URL + credenciales sin tocar la config: ls-remote directo.
+export async function checkRemoteAuth(
+	remoteUrl: string,
+	gitPath?: string,
+): Promise<{ ok: boolean; error?: string }> {
+	const git = resolveGit(gitPath);
+	const trimmed = remoteUrl.trim();
+	if (!isValidGitRemoteUrl(trimmed)) {
+		return { ok: false, error: t("wizardStep3ErrorInvalid") };
+	}
+	try {
+		await execFileAsync(
+			git,
+			["ls-remote", trimmed, "HEAD"],
+			gitOpts(process.cwd(), true),
+		);
+		return { ok: true };
+	} catch (error) {
+		const msg = error instanceof Error ? error.message : String(error);
+		return { ok: false, error: msg };
+	}
+}
+
 export async function isGitRepo(
 	cwd: string,
 	gitPath?: string,
@@ -244,7 +341,11 @@ export async function setupRemoteAndFirstCommit(
 		}
 
 		const branch = await getCurrentBranch(cwd, gitPath);
-		await execFileAsync(git, ["push", "-u", "origin", branch], gitOpts(cwd));
+		await execFileAsync(
+			git,
+			["push", "-u", "origin", branch],
+			gitOpts(cwd, true),
+		);
 
 		return {
 			success: true,
@@ -278,6 +379,30 @@ export function parsePorcelainOutput(stdout: string): GitChangedFile[] {
 	});
 }
 
+// Formato -z: entradas separadas por NUL, a prueba de nombres con
+// espacios, comillas o saltos de línea. En renames el orden es
+// "to\0from": la primera ruta es la vigente.
+export function parsePorcelainZ(stdout: string): GitChangedFile[] {
+	const fields = stdout.split("\0");
+	const files: GitChangedFile[] = [];
+	for (let i = 0; i < fields.length; i++) {
+		const entry = fields[i];
+		if (!entry || entry.trim().length === 0) continue;
+		const status = entry.slice(0, 2).trim();
+		const filePath = entry.slice(3);
+		// Renames/copias traen la ruta origen como segundo campo: se consume.
+		if (
+			(status.startsWith("R") || status.startsWith("C")) &&
+			i + 1 < fields.length
+		) {
+			i++;
+		}
+		if (!filePath) continue;
+		files.push({ status, path: filePath });
+	}
+	return files;
+}
+
 export interface GitStatusResult {
 	ok: boolean;
 	files: GitChangedFile[];
@@ -292,10 +417,10 @@ export async function getGitStatusResult(
 	try {
 		const { stdout } = await execFileAsync(
 			git,
-			["-c", "core.quotepath=false", "status", "--porcelain"],
+			["-c", "core.quotepath=false", "status", "--porcelain=v1", "-z"],
 			gitOpts(cwd),
 		);
-		return { ok: true, files: parsePorcelainOutput(stdout) };
+		return { ok: true, files: parsePorcelainZ(stdout) };
 	} catch (error) {
 		const msg = error instanceof Error ? error.message : String(error);
 		return { ok: false, files: [], error: msg };
@@ -350,7 +475,7 @@ export async function commitAndPushSelectedFiles(
 		}
 		await execFileAsync(git, ["add", "--", ...filePaths], gitOpts(cwd));
 		await execFileAsync(git, ["commit", "-m", commitMessage], gitOpts(cwd));
-		await execFileAsync(git, ["push"], gitOpts(cwd));
+		await execFileAsync(git, ["push"], gitOpts(cwd, true));
 		if (stashedIndex) {
 			try {
 				await execFileAsync(git, ["stash", "pop"], gitOpts(cwd));
@@ -394,7 +519,7 @@ export async function pullGitChanges(
 ): Promise<{ success: boolean; message: string }> {
 	const git = resolveGit(gitPath);
 	try {
-		const { stdout } = await execFileAsync(git, ["pull"], gitOpts(cwd));
+		const { stdout } = await execFileAsync(git, ["pull"], gitOpts(cwd, true));
 		if (
 			stdout.includes("Already up to date") ||
 			stdout.includes("Ya está actualizado")
@@ -427,12 +552,12 @@ export async function syncAndAlignWithRemote(
 			);
 			stashed = true;
 		}
-		await execFileAsync(git, ["fetch", "origin"], gitOpts(cwd));
+		await execFileAsync(git, ["fetch", "origin"], gitOpts(cwd, true));
 		try {
 			await execFileAsync(
 				git,
 				["pull", "--rebase", "origin", branch],
-				gitOpts(cwd),
+				gitOpts(cwd, true),
 			);
 		} catch (pullError) {
 			// Si hay conflicto durante rebase, abortar para no dejar el repositorio en estado inconsistente
@@ -451,7 +576,7 @@ export async function syncAndAlignWithRemote(
 			}
 			throw pullError;
 		}
-		await execFileAsync(git, ["push", "origin", branch], gitOpts(cwd));
+		await execFileAsync(git, ["push", "origin", branch], gitOpts(cwd, true));
 		if (stashed) {
 			try {
 				await execFileAsync(git, ["stash", "pop"], gitOpts(cwd));
@@ -495,8 +620,9 @@ export async function runGit(
 	args: string[],
 	cwd: string,
 	gitPath?: string,
+	remote = false,
 ): Promise<string> {
 	const git = resolveGit(gitPath);
-	const { stdout } = await execFileAsync(git, args, gitOpts(cwd));
+	const { stdout } = await execFileAsync(git, args, gitOpts(cwd, remote));
 	return stdout;
 }

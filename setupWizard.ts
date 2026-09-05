@@ -1,6 +1,8 @@
 import { type App, Modal } from "obsidian";
 import {
+	checkRemoteAuth,
 	getCommitMessage,
+	getGitIdentity,
 	getGitVersion,
 	initGitRepo,
 	isValidGitRemoteUrl,
@@ -124,10 +126,82 @@ export class SetupWizardModal extends Modal {
 			cls: "mod-cta",
 		});
 		btn3.disabled = true;
+		const preflightBox = step3Container.createDiv({ cls: "wizard-result" });
+		let authOk = false;
+		let authUrl = "";
+		let authTimer: number | null = null;
+
+		const renderPreflight = (
+			name: string,
+			email: string,
+			urlValid: boolean,
+			authState: "idle" | "checking" | "ok" | "fail",
+		) => {
+			preflightBox.empty();
+			preflightBox.createDiv({
+				text: name ? t("preflightNameOk", { name }) : t("preflightNameMissing"),
+				cls: name ? "wizard-success" : "wizard-error",
+			});
+			preflightBox.createDiv({
+				text: email
+					? t("preflightEmailOk", { email })
+					: t("preflightEmailMissing"),
+				cls: email ? "wizard-success" : "wizard-error",
+			});
+			if (authState === "checking") {
+				preflightBox.createDiv({
+					text: t("preflightAuthChecking"),
+					cls: "",
+				});
+			} else if (authState === "ok") {
+				preflightBox.createDiv({
+					text: t("preflightAuthOk"),
+					cls: "wizard-success",
+				});
+			} else if (authState === "fail") {
+				preflightBox.createDiv({
+					text: t("preflightAuthFail"),
+					cls: "wizard-error",
+				});
+			}
+			const ready = name.length > 0 && email.length > 0 && urlValid && authOk;
+			btn3.disabled = !ready;
+		};
+
+		const refreshPreflight = () => {
+			void (async () => {
+				const url = this.remoteUrl.trim();
+				const urlValid = url.length > 0 && isValidGitRemoteUrl(this.remoteUrl);
+				const { name, email } = await getGitIdentity(
+					this.basePath,
+					this.plugin.settings.customGitPath,
+				);
+				if (!urlValid) {
+					authOk = false;
+					authUrl = "";
+					renderPreflight(name, email, false, "idle");
+					return;
+				}
+				if (url === authUrl) {
+					renderPreflight(name, email, true, authOk ? "ok" : "fail");
+					return;
+				}
+				renderPreflight(name, email, true, "checking");
+				const res = await checkRemoteAuth(
+					url,
+					this.plugin.settings.customGitPath,
+				);
+				// Si el usuario siguió escribiendo, este resultado ya es viejo.
+				if (this.remoteUrl.trim() !== url) return;
+				authOk = res.ok;
+				authUrl = url;
+				renderPreflight(name, email, true, res.ok ? "ok" : "fail");
+			})();
+		};
+
 		const validateRemoteInput = () => {
 			const ok =
 				this.remoteUrl.trim().length > 0 && isValidGitRemoteUrl(this.remoteUrl);
-			btn3.disabled = !ok;
 			inputEl.toggleClass("wizard-input-error", !ok);
 			if (!ok && this.remoteUrl.trim().length > 0) {
 				step3Result.setText(t("wizardStep3ErrorInvalid"));
@@ -136,11 +210,17 @@ export class SetupWizardModal extends Modal {
 				step3Result.setText("");
 				step3Result.className = "wizard-result";
 			}
+			if (authTimer !== null) window.clearTimeout(authTimer);
+			authTimer = window.setTimeout(() => {
+				authTimer = null;
+				refreshPreflight();
+			}, 600);
 		};
 		inputEl.addEventListener("input", (e) => {
 			this.remoteUrl = (e.target as HTMLInputElement).value;
 			validateRemoteInput();
 		});
+		refreshPreflight();
 		btn3.addEventListener("click", () => {
 			void (async () => {
 				step3Result.setText(t("wizardStep3Connecting"));

@@ -8,6 +8,7 @@ import {
 	isPushRejectedMessage,
 	runGit,
 	syncAndAlignWithRemote,
+	syncCleanTree,
 } from "./gitHelper";
 import { type Language, setLanguage, t } from "./i18n";
 import { GitFacilSettingTab } from "./settingTab";
@@ -212,8 +213,16 @@ export default class GitFacilPlugin extends Plugin {
 
 			const status = await checkGitStatusPorcelain(basePath, gitPath);
 			if (!status) {
-				if (!isAutoSync) {
-					new Notice(t("noticeNothingToPush"));
+				// Árbol limpio: igual puede haber cambios remotos por bajar.
+				const clean = await syncCleanTree(basePath, gitPath);
+				if (clean.pulled) {
+					new Notice(t("pullChangesDownloaded"));
+				} else if (!isAutoSync) {
+					if (clean.error) {
+						new Notice(t("gitHelperPullError", { msg: clean.error }));
+					} else {
+						new Notice(t("noticeNothingToPush"));
+					}
 				}
 				return;
 			}
@@ -225,7 +234,7 @@ export default class GitFacilPlugin extends Plugin {
 				this.settings.commitMessageTemplate,
 			);
 			await runGit(["commit", "-m", commitMessage], basePath, gitPath);
-			await runGit(["push"], basePath, gitPath);
+			await runGit(["push"], basePath, gitPath, true);
 
 			new Notice(t("noticeCommitPushSuccess"));
 		} catch (error) {

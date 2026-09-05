@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+	checkRemoteAuth,
 	commitAndPushSelectedFiles,
 	getAheadBehind,
 	getCommitMessage,
 	getCurrentBranch,
+	getGitIdentity,
 	getGitStatusResult,
 	getGitVersion,
 	hasGitRemote,
@@ -17,10 +19,12 @@ import {
 	isValidGitRemoteUrl,
 	parseGitStatusPorcelain,
 	parsePorcelainOutput,
+	parsePorcelainZ,
 	pullGitChanges,
 	resolveGit,
 	setupRemoteAndFirstCommit,
 	syncAndAlignWithRemote,
+	syncCleanTree,
 } from "./gitHelper";
 import { en } from "./i18n/en";
 import { es } from "./i18n/es";
@@ -33,6 +37,9 @@ let mockNoUpstream = false;
 let mockPrestaged = false;
 let mockNoOrigin = false;
 let mockBranch = "main";
+let mockNoIdentity = false;
+let mockFailAuth = false;
+let mockCleanRemote = false;
 const mockCalls: string[][] = [];
 
 vi.mock("node:child_process", () => ({
@@ -76,16 +83,41 @@ vi.mock("node:child_process", () => ({
 				});
 				return;
 			}
-			cb(null, { stdout: "1\t2" });
+			cb(null, { stdout: mockCleanRemote ? "0\t0" : "1\t2" });
+			return;
+		}
+		if (args[0] === "config") {
+			if (mockNoIdentity) {
+				cb(new Error("config missing"), { stdout: "" });
+				return;
+			}
+			cb(null, {
+				stdout: args[1] === "user.name" ? "Alex Tester" : "alex@test.com",
+			});
+			return;
+		}
+		if (args[0] === "ls-remote") {
+			if (mockFailAuth) {
+				cb(new Error("Authentication failed"), { stdout: "" });
+				return;
+			}
+			cb(null, { stdout: "abc123\tHEAD" });
 			return;
 		}
 		if (args[0] === "remote") {
 			cb(null, { stdout: "origin" });
 			return;
 		}
-		if (args.includes("status") && args.includes("--porcelain")) {
+		if (
+			args.includes("status") &&
+			args.some((a) => a.startsWith("--porcelain"))
+		) {
 			if (mockCleanStatus) {
 				cb(null, { stdout: "" });
+				return;
+			}
+			if (args.includes("-z")) {
+				cb(null, { stdout: " M main.ts\0?? note.md\0" });
 				return;
 			}
 			cb(null, { stdout: " M main.ts\n?? note.md" });
@@ -196,6 +228,20 @@ describe("parsePorcelainOutput (Renames, Unicode & File Parsing)", () => {
 			status: "R",
 			path: "Notas/Día 1 y Más.md",
 		});
+	});
+
+	it("parsePorcelainZ debería soportar NUL, renames y saltos de línea", () => {
+		const raw = " M main.ts\0?? nota con espacios.md\0R  nuevo.md\0viejo.md\0";
+		expect(parsePorcelainZ(raw)).toEqual([
+			{ status: "M", path: "main.ts" },
+			{ status: "??", path: "nota con espacios.md" },
+			{ status: "R", path: "nuevo.md" },
+		]);
+		const tricky = "?? línea1\nlínea2.md\0";
+		expect(parsePorcelainZ(tricky)).toEqual([
+			{ status: "??", path: "línea1\nlínea2.md" },
+		]);
+		expect(parsePorcelainZ("")).toEqual([]);
 	});
 });
 
@@ -458,5 +504,60 @@ describe("gitHelper comprobaciones de entorno y wizard", () => {
 		expect(isValidGitRemoteUrl("ftp://github.com/user/repo.git")).toBe(false);
 		expect(isValidGitRemoteUrl("--upload-pack=evil")).toBe(false);
 		expect(isValidGitRemoteUrl("   ")).toBe(false);
+	});
+});
+
+describe("sync real con árbol limpio y preflight", () => {
+	it("debería bajar cambios remotos aunque no haya nada local", async () => {
+		mockCleanRemote = false;
+		mockFailRebase = false;
+		mockCalls.length = 0;
+		const res = await syncCleanTree("/fake/path");
+		expect(res.pulled).toBe(true);
+		expect(res.behind).toBe(1);
+		expect(mockCalls.some((c) => c[0] === "fetch")).toBe(true);
+		expect(mockCalls.some((c) => c[0] === "pull")).toBe(true);
+	});
+
+	it("debería no hacer pull si el remoto está al día", async () => {
+		mockCleanRemote = true;
+		mockCalls.length = 0;
+		const res = await syncCleanTree("/fake/path");
+		expect(res.pulled).toBe(false);
+		expect(mockCalls.some((c) => c[0] === "pull")).toBe(false);
+		mockCleanRemote = false;
+	});
+
+	it("debería reportar error honesto si el pull del árbol limpio falla", async () => {
+		mockCleanRemote = false;
+		mockFailRebase = true;
+		const res = await syncCleanTree("/fake/path");
+		expect(res.pulled).toBe(false);
+		expect(res.error).toContain("Conflict during rebase");
+		mockFailRebase = false;
+	});
+
+	it("debería leer la identidad Git configurada", async () => {
+		mockNoIdentity = false;
+		const id = await getGitIdentity("/fake/path");
+		expect(id).toEqual({ name: "Alex Tester", email: "alex@test.com" });
+		mockNoIdentity = true;
+		const empty = await getGitIdentity("/fake/path");
+		expect(empty).toEqual({ name: "", email: "" });
+		mockNoIdentity = false;
+	});
+
+	it("debería verificar auth del remoto sin tocar la config", async () => {
+		mockFailAuth = false;
+		mockCalls.length = 0;
+		const ok = await checkRemoteAuth("https://github.com/user/repo.git");
+		expect(ok.ok).toBe(true);
+		expect(mockCalls.some((c) => c[0] === "ls-remote")).toBe(true);
+		mockFailAuth = true;
+		const bad = await checkRemoteAuth("https://github.com/user/repo.git");
+		expect(bad.ok).toBe(false);
+		mockFailAuth = false;
+		const invalid = await checkRemoteAuth("not a url");
+		expect(invalid.ok).toBe(false);
 	});
 });
