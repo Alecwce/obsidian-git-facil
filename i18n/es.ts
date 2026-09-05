@@ -101,6 +101,27 @@ export const es = {
 	preflightAuthOk: "✅ Acceso al remoto verificado",
 	preflightAuthFail:
 		"❌ Sin acceso al remoto: revisa la URL y tus credenciales",
+	ghAvailable: "✅ GitHub CLI: {account}",
+	ghMissing:
+		"⚠️ gh no instalado (opcional): https://cli.github.com — también puedes pegar la URL manualmente",
+	ghNotLogged:
+		"⚠️ gh sin sesión: ejecuta `gh auth login` en tu terminal — o usa token manual abajo",
+	createRepoTitle: "O crea un repositorio nuevo en GitHub",
+	createRepoNamePlaceholder: "nombre-del-repo",
+	createRepoPrivate: "Privado (recomendado)",
+	createRepoBtn: "Crear repo y subir",
+	createRepoCreating: "Creando repositorio...",
+	tokenTitle: "O usa un token manual de GitHub",
+	tokenDesc:
+		"Se guarda en texto plano en la carpeta del plugin. Crea un token con el scope repo mínimo y revócalo si lo expones.",
+	tokenPlaceholder: "ghp_...",
+	tokenVerifyBtn: "Verificar y guardar",
+	tokenClearBtn: "Borrar token",
+	tokenVerifying: "Verificando...",
+	tokenSavedOk: "✅ Token válido ({login}), guardado",
+	tokenInvalid: "❌ Token inválido o sin acceso",
+	tokenCleared: "Token borrado",
+	tokenSaved: "✅ Token guardado (oculto por seguridad)",
 	wizardStep3Placeholder: "https://github.com/tu-usuario/tu-repositorio.git",
 	wizardStep3Btn: "Conectar y hacer primer commit",
 	wizardStep3Connecting: "Conectando y subiendo tus notas...",

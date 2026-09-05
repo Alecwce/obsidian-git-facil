@@ -62,6 +62,14 @@
 	font-weight: 600;
 }
 
+.git-facil-wizard .wizard-check-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 12px;
+	font-size: 0.9em;
+}
+
 /* Panel de Estado de Git */
 .git-facil-status-view {
 	padding: 12px;

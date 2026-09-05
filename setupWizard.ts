@@ -1,11 +1,14 @@
-import { type App, Modal } from "obsidian";
+import { type App, Modal, requestUrl } from "obsidian";
 import {
 	checkRemoteAuth,
 	getCommitMessage,
+	getGhAuthStatus,
 	getGitIdentity,
 	getGitVersion,
 	initGitRepo,
 	isValidGitRemoteUrl,
+	sanitizeRepoName,
+	setupGhRepoAndFirstCommit,
 	setupRemoteAndFirstCommit,
 } from "./gitHelper";
 import { t } from "./i18n";
@@ -190,6 +193,7 @@ export class SetupWizardModal extends Modal {
 				const res = await checkRemoteAuth(
 					url,
 					this.plugin.settings.customGitPath,
+					this.plugin.settings.githubToken || undefined,
 				);
 				// Si el usuario siguió escribiendo, este resultado ya es viejo.
 				if (this.remoteUrl.trim() !== url) return;
@@ -231,9 +235,127 @@ export class SetupWizardModal extends Modal {
 					this.remoteUrl,
 					commitMsg,
 					this.plugin.settings.customGitPath,
+					this.plugin.settings.githubToken || undefined,
 				);
 				step3Result.setText(res.message);
 				step3Result.addClass(res.success ? "wizard-success" : "wizard-error");
+			})();
+		});
+
+		// --- Crear repo nuevo con gh ---
+		const createBox = step3Container.createDiv({ cls: "wizard-step" });
+		createBox.createEl("h3", { text: t("createRepoTitle") });
+		const ghStatusEl = createBox.createDiv({ cls: "wizard-result" });
+		ghStatusEl.setText(t("preflightAuthChecking"));
+		void (async () => {
+			const ghStatus = await getGhAuthStatus();
+			if (!ghStatus.installed) {
+				ghStatusEl.setText(t("ghMissing"));
+				ghStatusEl.addClass("wizard-error");
+				return;
+			}
+			if (!ghStatus.loggedIn) {
+				ghStatusEl.setText(t("ghNotLogged"));
+				ghStatusEl.addClass("wizard-error");
+				return;
+			}
+			ghStatusEl.setText(t("ghAvailable", { account: ghStatus.account ?? "" }));
+			ghStatusEl.addClass("wizard-success");
+
+			const defaultName = sanitizeRepoName(this.app.vault.getName());
+			const nameInput = createBox.createEl("input", {
+				type: "text",
+				placeholder: t("createRepoNamePlaceholder"),
+				cls: "wizard-input",
+			});
+			nameInput.value = defaultName;
+			const privateRow = createBox.createDiv({ cls: "wizard-check-row" });
+			const privateCheck = privateRow.createEl("input", { type: "checkbox" });
+			privateCheck.checked = true;
+			privateRow.createSpan({ text: t("createRepoPrivate") });
+			const createResult = createBox.createDiv({ cls: "wizard-result" });
+			const createBtn = createBox.createEl("button", {
+				text: t("createRepoBtn"),
+				cls: "mod-cta",
+			});
+			createBtn.addEventListener("click", () => {
+				void (async () => {
+					createResult.setText(t("createRepoCreating"));
+					createResult.className = "wizard-result";
+					const res = await setupGhRepoAndFirstCommit(
+						this.basePath,
+						nameInput.value,
+						privateCheck.checked,
+						getCommitMessage(),
+						this.plugin.settings.customGitPath,
+					);
+					createResult.setText(res.message);
+					createResult.addClass(
+						res.success ? "wizard-success" : "wizard-error",
+					);
+				})();
+			});
+		})();
+
+		// --- Token manual ---
+		const tokenBox = step3Container.createDiv({ cls: "wizard-step" });
+		tokenBox.createEl("h3", { text: t("tokenTitle") });
+		tokenBox.createEl("p", { text: t("tokenDesc") });
+		const tokenInput = tokenBox.createEl("input", {
+			type: "password",
+			placeholder: t("tokenPlaceholder"),
+			cls: "wizard-input",
+		});
+		const tokenResult = tokenBox.createDiv({ cls: "wizard-result" });
+		if (this.plugin.settings.githubToken) {
+			tokenResult.setText(t("tokenSaved"));
+			tokenResult.addClass("wizard-success");
+		}
+		const tokenActions = tokenBox.createDiv({ cls: "status-view-actions" });
+		const verifyBtn = tokenActions.createEl("button", {
+			text: t("tokenVerifyBtn"),
+			cls: "mod-cta",
+		});
+		verifyBtn.addEventListener("click", () => {
+			void (async () => {
+				const token = tokenInput.value.trim();
+				if (!token) {
+					tokenResult.setText(t("tokenInvalid"));
+					tokenResult.className = "wizard-result wizard-error";
+					return;
+				}
+				tokenResult.setText(t("tokenVerifying"));
+				tokenResult.className = "wizard-result";
+				try {
+					const res = await requestUrl({
+						url: "https://api.github.com/user",
+						method: "GET",
+						headers: {
+							Authorization: `Bearer ${token}`,
+							"User-Agent": "obsidian-git-facil",
+						},
+					});
+					const login = (res.json as { login?: string })?.login ?? "";
+					this.plugin.settings.githubToken = token;
+					await this.plugin.saveSettings();
+					tokenInput.value = "";
+					tokenResult.setText(t("tokenSavedOk", { login }));
+					tokenResult.className = "wizard-result wizard-success";
+				} catch {
+					tokenResult.setText(t("tokenInvalid"));
+					tokenResult.className = "wizard-result wizard-error";
+				}
+			})();
+		});
+		const clearBtn = tokenActions.createEl("button", {
+			text: t("tokenClearBtn"),
+		});
+		clearBtn.addEventListener("click", () => {
+			void (async () => {
+				this.plugin.settings.githubToken = "";
+				await this.plugin.saveSettings();
+				tokenResult.setText(t("tokenCleared"));
+				tokenResult.className = "wizard-result";
 			})();
 		});
 	}
