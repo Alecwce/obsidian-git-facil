@@ -24,6 +24,7 @@ export interface GitFacilSettings {
 	autoSyncEnabled: boolean;
 	autoSyncIntervalMinutes: number;
 	customGitPath: string;
+	githubToken: string;
 }
 
 export const DEFAULT_SETTINGS: GitFacilSettings = {
@@ -32,6 +33,7 @@ export const DEFAULT_SETTINGS: GitFacilSettings = {
 	autoSyncEnabled: false,
 	autoSyncIntervalMinutes: 10,
 	customGitPath: "",
+	githubToken: "",
 };
 
 export default class GitFacilPlugin extends Plugin {
@@ -170,6 +172,7 @@ export default class GitFacilPlugin extends Plugin {
 				const res = await syncAndAlignWithRemote(
 					basePath,
 					this.settings.customGitPath,
+					this.settings.githubToken || undefined,
 				);
 				new Notice(res.message);
 				onSynced?.();
@@ -193,6 +196,7 @@ export default class GitFacilPlugin extends Plugin {
 			}
 
 			const gitPath = this.settings.customGitPath;
+			const token = this.settings.githubToken?.trim() || undefined;
 			const installed = await isGitInstalled(gitPath);
 			if (!installed) {
 				new Notice(t("errGitNotInstalled"));
@@ -214,7 +218,7 @@ export default class GitFacilPlugin extends Plugin {
 			const status = await checkGitStatusPorcelain(basePath, gitPath);
 			if (!status) {
 				// Árbol limpio: igual puede haber cambios remotos por bajar.
-				const clean = await syncCleanTree(basePath, gitPath);
+				const clean = await syncCleanTree(basePath, gitPath, token);
 				if (clean.pulled) {
 					new Notice(t("pullChangesDownloaded"));
 				} else if (!isAutoSync) {
@@ -234,7 +238,7 @@ export default class GitFacilPlugin extends Plugin {
 				this.settings.commitMessageTemplate,
 			);
 			await runGit(["commit", "-m", commitMessage], basePath, gitPath);
-			await runGit(["push"], basePath, gitPath, true);
+			await runGit(["push"], basePath, gitPath, true, token);
 
 			new Notice(t("noticeCommitPushSuccess"));
 		} catch (error) {

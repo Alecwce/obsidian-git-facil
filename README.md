@@ -67,6 +67,12 @@
 
 ---
 
+## Network use / Uso de red
+
+GitFacil runs `git` (and optionally your own `gh` CLI) locally. It calls `api.github.com` **only** when you verify a manual token in the setup wizard, and `gh` talks to GitHub only when you create a repository from the wizard. There is no telemetry and no GitFacil server.
+
+---
+
 ## Troubleshooting / Solución de Problemas
 
 | Error Notice | Cause / Causa | Solution / Solución |

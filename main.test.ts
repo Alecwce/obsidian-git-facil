@@ -5,6 +5,7 @@ import {
 	getAheadBehind,
 	getCommitMessage,
 	getCurrentBranch,
+	getGhAuthStatus,
 	getGitIdentity,
 	getGitStatusResult,
 	getGitVersion,
@@ -12,6 +13,7 @@ import {
 	hasStagedChanges,
 	hasUncommittedChanges,
 	initGitRepo,
+	isGhInstalled,
 	isGitInstalled,
 	isGitRepo,
 	isPushRejectedMessage,
@@ -20,7 +22,10 @@ import {
 	parsePorcelainOutput,
 	parsePorcelainZ,
 	pullGitChanges,
+	redactSecrets,
 	resolveGit,
+	sanitizeRepoName,
+	setupGhRepoAndFirstCommit,
 	setupRemoteAndFirstCommit,
 	syncAndAlignWithRemote,
 	syncCleanTree,
@@ -39,6 +44,9 @@ let mockBranch = "main";
 let mockNoIdentity = false;
 let mockFailAuth = false;
 let mockCleanRemote = false;
+let mockNoGh = false;
+let mockGhAuth: "ok" | "nologin" = "ok";
+let mockGhCreateFail = false;
 const mockCalls: string[][] = [];
 
 vi.mock("node:child_process", () => ({
@@ -54,6 +62,35 @@ vi.mock("node:child_process", () => ({
 		) => void;
 
 		mockCalls.push([...args]);
+
+		if (_file === "gh") {
+			if (args.includes("--version")) {
+				if (mockNoGh) {
+					cb(new Error("gh not found"), { stdout: "" });
+					return;
+				}
+				cb(null, { stdout: "gh version 2.70.0" });
+				return;
+			}
+			if (args[0] === "auth") {
+				if (mockGhAuth === "nologin") {
+					cb(new Error("not logged in"), { stdout: "" });
+					return;
+				}
+				cb(null, { stdout: "Logged in to github.com account testuser" });
+				return;
+			}
+			if (args[0] === "repo" && args[1] === "create") {
+				if (mockGhCreateFail) {
+					cb(new Error("Name already exists on github"), { stdout: "" });
+					return;
+				}
+				cb(null, { stdout: "https://github.com/testuser/repo" });
+				return;
+			}
+			cb(null, { stdout: "" });
+			return;
+		}
 
 		if (args.includes("--version")) {
 			cb(null, { stdout: "git version 2.40.0" });
@@ -553,5 +590,114 @@ describe("sync real con árbol limpio y preflight", () => {
 		mockFailAuth = false;
 		const invalid = await checkRemoteAuth("not a url");
 		expect(invalid.ok).toBe(false);
+	});
+});
+
+describe("gh CLI y token manual", () => {
+	it("debería detectar gh instalado y sesión", async () => {
+		mockNoGh = false;
+		mockGhAuth = "ok";
+		expect(await isGhInstalled()).toBe(true);
+		expect(await getGhAuthStatus()).toEqual({
+			installed: true,
+			loggedIn: true,
+			account: "testuser",
+		});
+		mockGhAuth = "nologin";
+		expect(await getGhAuthStatus()).toEqual({
+			installed: true,
+			loggedIn: false,
+			account: undefined,
+		});
+		mockGhAuth = "ok";
+		mockNoGh = true;
+		expect(await isGhInstalled()).toBe(false);
+		expect(await getGhAuthStatus()).toEqual({
+			installed: false,
+			loggedIn: false,
+		});
+		mockNoGh = false;
+	});
+
+	it("debería sanear nombres de repo", () => {
+		expect(sanitizeRepoName("Mi Bóveda 2026")).toBe("Mi-Bveda-2026");
+		expect(sanitizeRepoName("  notas/diario ")).toBe("notasdiario");
+		expect(sanitizeRepoName("...")).toBe("mi-boveda");
+		expect(sanitizeRepoName("")).toBe("mi-boveda");
+		expect(sanitizeRepoName("a".repeat(200)).length).toBeLessThanOrEqual(100);
+	});
+
+	it("debería crear repo privado con gh y pushear", async () => {
+		mockGhCreateFail = false;
+		mockCalls.length = 0;
+		const res = await setupGhRepoAndFirstCommit(
+			"/fake/path",
+			"Mi Bóveda",
+			true,
+			"commit msg",
+		);
+		expect(res.success).toBe(true);
+		const create = mockCalls.find((c) => c[0] === "repo");
+		expect(create).toEqual([
+			"repo",
+			"create",
+			"Mi-Bveda",
+			"--private",
+			"--source=.",
+			"--push",
+		]);
+	});
+
+	it("debería crear repo público si se pide y fallar honesto si existe", async () => {
+		mockCalls.length = 0;
+		const res = await setupGhRepoAndFirstCommit(
+			"/fake/path",
+			"notas",
+			false,
+			"commit msg",
+		);
+		expect(res.success).toBe(true);
+		expect(mockCalls.find((c) => c[0] === "repo")).toContain("--public");
+		mockGhCreateFail = true;
+		const dup = await setupGhRepoAndFirstCommit(
+			"/fake/path",
+			"notas",
+			true,
+			"commit msg",
+		);
+		expect(dup.success).toBe(false);
+		expect(dup.message).toContain("already exists");
+		mockGhCreateFail = false;
+	});
+
+	it("debería redactar secretos de cualquier mensaje", () => {
+		expect(redactSecrets("fail tok-abc-123 here", ["tok-abc-123"])).toBe(
+			"fail *** here",
+		);
+		expect(redactSecrets("nada que ocultar", ["tok-abc-123"])).toBe(
+			"nada que ocultar",
+		);
+		expect(redactSecrets("x", [undefined, "ab"])).toBe("x");
+	});
+
+	it("debería pasar el token por header sin persistirlo", async () => {
+		mockCalls.length = 0;
+		mockPrestaged = false;
+		const res = await commitAndPushSelectedFiles(
+			"/fake/path",
+			["main.ts"],
+			"commit msg",
+			undefined,
+			"tok-secreto-1",
+		);
+		expect(res.success).toBe(true);
+		const push = mockCalls.find((c) => c.includes("push"));
+		expect(push).toBeDefined();
+		expect(push?.some((a) => a.includes("tok-secreto-1"))).toBe(true);
+		// El token no queda en add/commit ni en lecturas de estado
+		const others = mockCalls.filter((c) => !c.includes("push"));
+		expect(others.every((c) => !c.join(" ").includes("tok-secreto-1"))).toBe(
+			true,
+		);
 	});
 });

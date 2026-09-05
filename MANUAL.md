@@ -32,6 +32,14 @@ Abre los ajustes del plugin y pulsa **🪄 Configurar mi bóveda / Configure my 
 
 Antes de conectar, el asistente hace un **preflight**: verifica tu identidad Git (`user.name` / `user.email`, con el comando exacto si falta algo) y comprueba el acceso al remoto sin tocar tu configuración. El botón se activa solo cuando todo está en verde.
 
+### Crear el repositorio desde el asistente (con `gh`)
+
+Si tienes [GitHub CLI (`gh`)](https://cli.github.com) instalado y con sesión (`gh auth login`), el paso 3 te ofrece **crear el repo directamente**: escribe el nombre (por defecto, el de tu bóveda), deja marcado **Privado** y pulsa crear. Usa tu propio `gh`, sin guardar nada.
+
+### Token manual (sin `gh`)
+
+Si no tienes `gh`, el paso 3 tiene una caja de **token**: pégalo (campo password), pulsa **Verificar y guardar**. Se comprueba contra `api.github.com` y se guarda en la carpeta del plugin **en texto plano**: crea un token con el scope `repo` mínimo y revócalo si lo expones. Puedes borrarlo cuando quieras desde el mismo sitio.
+
 ## 3. Uso diario / Daily use
 
 - **Icono 🚀 (cinta izquierda):** commit + push de todo con un clic. El mensaje usa tu plantilla.

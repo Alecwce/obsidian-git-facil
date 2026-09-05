@@ -91,6 +91,7 @@ export class GitStatusView extends ItemView {
 				const res = await pullGitChanges(
 					basePath,
 					this.plugin.settings.customGitPath,
+					this.plugin.settings.githubToken || undefined,
 				);
 				new Notice(res.message);
 				await this.refreshView();
@@ -148,6 +149,7 @@ export class GitStatusView extends ItemView {
 					filesToCommit,
 					msg,
 					this.plugin.settings.customGitPath,
+					this.plugin.settings.githubToken || undefined,
 				);
 				if (res.pushRejected) {
 					this.plugin.showAntiPanicNotice(basePath, () => {

@@ -27,5 +27,11 @@ rastreado de tu bóveda — notas, adjuntos, imágenes — al remoto Git que
 **privado** si tus notas no deben ser públicas, y revisa con
 `git status` qué se rastrea antes del primer push.
 
+Si usas un token manual de GitHub, se guarda en texto plano en
+`.obsidian/plugins/git-facil/` (donde Obsidian guarda los ajustes).
+Usa el scope mínimo (`repo`), no lo compartas y revócalo si lo expones.
+El token solo se envía a GitHub (operaciones git y verificación) y se
+redacta de cualquier mensaje de error.
+
 Para vulnerabilidades usa el **reporte privado** (pestaña Security →
 Report a vulnerability), nunca un issue público.
