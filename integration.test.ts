@@ -156,7 +156,8 @@ describe.skipIf(!gitAvailable)("integration con git real", () => {
 			git(["push", "-u", "origin", "main"], dir);
 			// Otro clon avanza el remoto
 			const other = join(rootOf(dir), "other");
-			execFileSync("git", ["clone", remote, other], { timeout: 60_000 });
+			git(["clone", remote, other], rootOf(dir));
+			git(["checkout", "-B", "main"], other);
 			writeFileSync(join(other, "otro.md"), "x");
 			git(["add", "."], other);
 			git(["commit", "-m", "otro"], other);
@@ -199,7 +200,8 @@ describe.skipIf(!gitAvailable)("integration con git real", () => {
 			git(["remote", "add", "origin", remote], dir);
 			git(["push", "-u", "origin", "main"], dir);
 			const other = join(rootOf(dir), "other");
-			execFileSync("git", ["clone", remote, other], { timeout: 60_000 });
+			git(["clone", remote, other], rootOf(dir));
+			git(["checkout", "-B", "main"], other);
 			writeFileSync(join(other, "remota.md"), "x");
 			git(["add", "."], other);
 			git(["commit", "-m", "remota"], other);
