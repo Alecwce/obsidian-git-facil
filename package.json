@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-git-facil",
-	"version": "1.5.1",
+	"version": "1.5.2",
 	"description": "Plugin de Git sencillo para Obsidian",
 	"main": "main.js",
 	"scripts": {
