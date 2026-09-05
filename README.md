@@ -8,14 +8,13 @@
 
 1. **Git installed / Tener Git instalado:** Download from [git-scm.com](https://git-scm.com).
 2. **Git repository initialized / Repositorio inicializado:** Run `git init` in your vault root folder.
-3. **Remote repository configured / Repositorio remoto:** Run `git remote add origin https://github.com/tu-usuario/tu-repo.git` (with your real repository URL).
+3. **Remote repository configured / Repositorio remoto:** Connect your vault to GitHub with `git remote add origin` using your repository URL — or skip the terminal entirely with the Setup Wizard below.
 
 ---
 
 ## Installation / Instalación
 
-### Option 1: Community Plugin Directory (Coming soon / Próximamente)
-> Under review for the official directory. Meanwhile, use Option 2 or 3.
+### Option 1: Community Plugin Directory (Recommended)
 1. Open Obsidian **Settings** -> **Community plugins**.
 2. Search for **GitFacil** and click **Install**.
 3. Enable the plugin.
@@ -28,7 +27,7 @@
 
 ### Option 3: Manual Installation
 1. Download `main.js`, `manifest.json`, and `styles.css` from [Releases](https://github.com/Alecwce/obsidian-git-facil/releases).
-2. Inside your vault folder (for example `MiBoveda/`), create the folder `.obsidian/plugins/git-facil/` (full path like `MiBoveda/.obsidian/plugins/git-facil/`).
+2. Inside your vault folder, create the folder `.obsidian/plugins/git-facil/`.
 3. Copy the downloaded files into that folder and reload plugins.
 
 ---
@@ -45,7 +44,7 @@
 
 ## Settings / Ajustes
 
-- **Commit Message Template / Plantilla:** Custom message template using `{fecha}` (e.g. `📝 notas {fecha}`).
+- **Commit Message Template / Plantilla:** Custom message template; the plugin automatically inserts the current date and time (a default message looks like: 📝 notas 2026-08-04 17:45).
 - **Auto-sync Toggle & Interval:** Enable automatic background backups every N minutes.
 
 ---
@@ -56,7 +55,7 @@
 | :--- | :--- | :--- |
 | `❌ No se encontró Git` | Git not found in PATH | Install Git from [git-scm.com](https://git-scm.com) |
 | `❌ Tu bóveda no es un repositorio Git` | Vault not initialized | Run `git init` or use Setup Wizard |
-| `❌ No hay remote` | No remote repository | Run `git remote add origin https://github.com/tu-usuario/tu-repo.git` |
+| `❌ No hay remote` | No remote repository | Connect it with the Setup Wizard or run `git remote add origin` with your repository URL |
 
 ---
 
