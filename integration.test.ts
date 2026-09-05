@@ -46,6 +46,11 @@ function makeRepo(): { dir: string; remote: string } {
 	const remote = join(root, "remote.git");
 	const dir = join(root, "local");
 	execFileSync("git", ["init", "--bare", remote], { timeout: 60_000 });
+	// El bare nace con HEAD en master inexistente: apuntarlo a main para
+	// que los clones arranquen en la rama correcta (como hacen los forges).
+	execFileSync("git", ["--git-dir", remote, "symbolic-ref", "HEAD", "refs/heads/main"], {
+		timeout: 60_000,
+	});
 	execFileSync("git", ["init", "-b", "main", dir], { timeout: 60_000 });
 	git(["config", "user.name", "GitFacil Test"], dir);
 	git(["config", "user.email", "test@gitfacil.dev"], dir);
