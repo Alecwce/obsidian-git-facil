@@ -2,6 +2,8 @@
 
 **GitFacil** is an ultra-lightweight and simple Git backup plugin for Obsidian. / **GitFacil** es un plugin ultraliviano y sencillo para Obsidian que te permite respaldar y sincronizar tus notas con Git en un solo clic, sin complicaciones ni configuraciones complejas.
 
+📖 **Manual completo / Full manual:** [MANUAL.md](MANUAL.md).
+
 ---
 
 ## 📋 Prerequisites / Requisitos

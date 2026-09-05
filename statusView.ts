@@ -46,7 +46,7 @@ export class GitStatusView extends ItemView {
 		const header = containerEl.createDiv({ cls: "status-view-header" });
 		const titleEl = header.createEl("h3", { text: t("statusPanelTitle") });
 
-		const branchLine = header.createEl("span", { cls: "status-branch-line" });
+		const branchLine = header.createSpan({ cls: "status-branch-line" });
 		void (async () => {
 			const bp = getVaultBasePath(this.app);
 			if (!bp) return;
