@@ -269,19 +269,6 @@ export async function initGitRepo(
 	}
 }
 
-export async function hasGitRemote(
-	cwd: string,
-	gitPath?: string,
-): Promise<boolean> {
-	const git = resolveGit(gitPath);
-	try {
-		const { stdout } = await execFileAsync(git, ["remote"], gitOpts(cwd));
-		return stdout.trim().length > 0;
-	} catch {
-		return false;
-	}
-}
-
 export async function hasOriginRemote(
 	cwd: string,
 	gitPath?: string,

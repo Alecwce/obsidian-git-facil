@@ -8,7 +8,6 @@ import {
 	getGitIdentity,
 	getGitStatusResult,
 	getGitVersion,
-	hasGitRemote,
 	hasOriginRemote,
 	hasStagedChanges,
 	hasUncommittedChanges,
@@ -432,11 +431,6 @@ describe("gitHelper comprobaciones de entorno y wizard", () => {
 		const res = await initGitRepo("/fake/path");
 		expect(res.success).toBe(true);
 		expect(res.message).toContain("repositorio Git");
-	});
-
-	it("debería detectar si el repositorio tiene remote", async () => {
-		const remote = await hasGitRemote("/fake/path");
-		expect(remote).toBe(true);
 	});
 
 	it("debería distinguir origin de otros remotos", async () => {

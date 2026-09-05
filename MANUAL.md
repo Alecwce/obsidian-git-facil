@@ -28,6 +28,10 @@ Abre los ajustes del plugin y pulsa **🪄 Configurar mi bóveda / Configure my 
 2. **Crear repositorio:** convierte tu bóveda en repositorio Git (`init -b main`). Si ya lo es, lo detecta y no hace nada.
 3. **Conectar con GitHub:** pega la URL de tu repo (`https://github.com/usuario/repo.git` o `git@github.com:usuario/repo.git`) y pulsa **Conectar y hacer primer commit**. La URL se valida en vivo: el botón solo se activa con una URL válida.
 
+> 🔐 Todo lo que Git rastree en tu bóveda se subirá al remoto: usa un repositorio **privado** si tus notas no deben ser públicas.
+
+Antes de conectar, el asistente hace un **preflight**: verifica tu identidad Git (`user.name` / `user.email`, con el comando exacto si falta algo) y comprueba el acceso al remoto sin tocar tu configuración. El botón se activa solo cuando todo está en verde.
+
 ## 3. Uso diario / Daily use
 
 - **Icono 🚀 (cinta izquierda):** commit + push de todo con un clic. El mensaje usa tu plantilla.
@@ -52,6 +56,8 @@ Cuando el remoto tiene cambios que tú no tienes, Git rechaza el push. En vez de
 ![Auto-sync](docs/settings-autosync.gif)
 
 En ajustes activa **Auto-sync** y el intervalo en minutos: el plugin sube tus cambios solo, en segundo plano. Si una sincronización ya está en curso, la siguiente se salta sin duplicar commits.
+
+Aunque no tengas cambios locales, cada ronda comprueba el remoto y **baja lo nuevo** si lo hay (sync de verdad, no solo backup).
 
 ## 6. Ajustes / Settings
 
