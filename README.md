@@ -52,6 +52,8 @@
 
 ## Usage / Modo de Uso
 
+> ⚡ Pulsa **`Ctrl+P`** (o `Cmd+P`), escribe **GitFacil** y verás todo: commit, panel y asistente.
+
 - **🚀 One-click Ribbon Icon:** Click the rocket icon 🚀 in the left ribbon to commit and push changes immediately.
 - **📊 Git Status Side Panel:** Open the side panel (icon `git-compare`) to view modified files, select checkboxes, pull changes, or commit selected files.
 - **🪄 Setup Wizard:** Click `🪄 Configurar mi bóveda` in plugin settings for a 3-step zero-terminal guided setup.

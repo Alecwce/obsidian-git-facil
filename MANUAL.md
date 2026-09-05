@@ -6,6 +6,18 @@
 > Las imágenes son ilustraciones de la interfaz real.
 > Images are illustrations of the real interface.
 
+## ⚡ Encuentra todo rápido / Find everything fast
+
+Todo GitFacil vive en la **paleta de comandos**: pulsa **`Ctrl+P`** (o `Cmd+P` en Mac) y escribe **GitFacil**. Verás:
+
+| Comando / Command | Qué hace / What it does |
+|---|---|
+| GitFacil: Commit y Push | Sube todo ahora mismo |
+| GitFacil: Abrir panel de Estado de Git | Abre el panel lateral |
+| GitFacil: Abrir asistente de configuración | Abre el 🪄 asistente (paso 2) |
+
+Además: icono **🚀** en la cinta izquierda (commit+push) e icono de estado (panel).
+
 ---
 
 ## 1. Instalación / Installation
@@ -20,7 +32,7 @@ Requisito: tener [Git](https://git-scm.com) instalado.
 
 ## 2. Asistente de configuración / Setup wizard (3 pasos)
 
-Abre los ajustes del plugin y pulsa **🪄 Configurar mi bóveda / Configure my vault**:
+**Cómo abrirlo:** `Ctrl+P` → **GitFacil: Abrir asistente de configuración** (también desde los ajustes del plugin, botón 🪄):
 
 ![Asistente de configuración](docs/wizard.gif)
 
@@ -93,4 +105,5 @@ Aunque no tengas cambios locales, cada ronda comprueba el remoto y **baja lo nue
 - **🔐 ¿Mis notas serán públicas?** Depende de tu repositorio: todo lo que Git rastree en tu bóveda se sube al remoto. Usa un repositorio **privado** si tus notas no deben ser públicas, y revisa con `git status` qué se rastrea antes del primer push.
 - **¿Funciona en móvil?** No, es solo escritorio (`isDesktopOnly`): necesita Git instalado en el sistema.
 - **¿Qué pasa si edito mientras sincroniza?** Nada malo: el auto-sync se salta esa ronda y la siguiente lo sube.
+- **🔍 Encuentra todo con `Ctrl+P`:** escribe GitFacil para ver los 3 comandos (commit, panel, asistente). Es la forma más rápida de usar el plugin.
 - **¿Dónde reporto errores?** En [Issues](https://github.com/Alecwce/obsidian-git-facil/issues) con la versión del plugin, de Obsidian y tu sistema.
