@@ -91,6 +91,16 @@ export const es = {
 		"Pega la dirección de tu repositorio de GitHub (ejemplo: https://github.com/usuario/repo.git):",
 	wizardStep3Privacy:
 		"🔐 Todo lo que Git rastree en tu bóveda se subirá a ese remoto. Usa un repositorio PRIVADO si tus notas no deben ser públicas.",
+	preflightNameOk: "✅ Identidad: {name}",
+	preflightNameMissing:
+		'❌ Falta user.name: git config --global user.name "Tu Nombre"',
+	preflightEmailOk: "✅ Email: {email}",
+	preflightEmailMissing:
+		"❌ Falta user.email: git config --global user.email tu@email.com",
+	preflightAuthChecking: "⏳ Comprobando acceso al remoto...",
+	preflightAuthOk: "✅ Acceso al remoto verificado",
+	preflightAuthFail:
+		"❌ Sin acceso al remoto: revisa la URL y tus credenciales",
 	wizardStep3Placeholder: "https://github.com/tu-usuario/tu-repositorio.git",
 	wizardStep3Btn: "Conectar y hacer primer commit",
 	wizardStep3Connecting: "Conectando y subiendo tus notas...",

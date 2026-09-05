@@ -89,6 +89,15 @@ export const en: Record<TranslationKeys, string> = {
 		"Paste your GitHub repository address (example: https://github.com/user/repo.git):",
 	wizardStep3Privacy:
 		"🔐 Everything Git tracks in your vault will be uploaded to that remote. Use a PRIVATE repository if your notes must stay private.",
+	preflightNameOk: "✅ Identity: {name}",
+	preflightNameMissing:
+		'❌ Missing user.name: git config --global user.name "Your Name"',
+	preflightEmailOk: "✅ Email: {email}",
+	preflightEmailMissing:
+		"❌ Missing user.email: git config --global user.email you@email.com",
+	preflightAuthChecking: "⏳ Checking remote access...",
+	preflightAuthOk: "✅ Remote access verified",
+	preflightAuthFail: "❌ No remote access: check the URL and your credentials",
 	wizardStep3Placeholder: "https://github.com/your-username/your-repo.git",
 	wizardStep3Btn: "Connect & make first commit",
 	wizardStep3Connecting: "Connecting and uploading your notes...",
