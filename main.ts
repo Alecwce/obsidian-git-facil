@@ -1,4 +1,5 @@
-import { Notice, Plugin, type WorkspaceLeaf } from "obsidian";
+import { Notice, Platform, Plugin, type WorkspaceLeaf } from "obsidian";
+import { CloneVaultModal } from "./cloneModal";
 import {
 	checkGitStatusPorcelain,
 	getCommitMessage,
@@ -11,6 +12,12 @@ import {
 	syncCleanTree,
 } from "./gitHelper";
 import { type Language, setLanguage, t } from "./i18n";
+import {
+	isMobileRepo,
+	mobileCommitAndPush,
+	mobileGetPendingCount,
+	mobilePull,
+} from "./mobileGit";
 import { GitFacilSettingTab } from "./settingTab";
 import { SetupWizardModal } from "./setupWizard";
 import { GIT_STATUS_VIEW_TYPE, GitStatusView } from "./statusView";
@@ -83,6 +90,14 @@ export default class GitFacilPlugin extends Plugin {
 			callback: () => {
 				const basePath = getVaultBasePath(this.app);
 				new SetupWizardModal(this.app, this, basePath).open();
+			},
+		});
+
+		this.addCommand({
+			id: "clone-vault",
+			name: "📥 Clonar Bóveda desde GitHub (Clone Vault)",
+			callback: () => {
+				new CloneVaultModal(this.app, this).open();
 			},
 		});
 
@@ -171,6 +186,20 @@ export default class GitFacilPlugin extends Plugin {
 
 	async refreshGitStatus() {
 		if (this.isSyncing) return;
+		if (!Platform.isDesktop) {
+			try {
+				const count = await mobileGetPendingCount(this.app);
+				if (count === 0) {
+					this.updateStatusBar("idle");
+				} else {
+					this.updateStatusBar("dirty", count);
+				}
+			} catch {
+				// Silencioso
+			}
+			return;
+		}
+
 		const basePath = getVaultBasePath(this.app);
 		if (!basePath) return;
 		try {
@@ -190,6 +219,22 @@ export default class GitFacilPlugin extends Plugin {
 	}
 
 	private async handleStartupSync() {
+		if (!Platform.isDesktop) {
+			try {
+				if (await isMobileRepo(this.app)) {
+					const res = await mobilePull(this.app, this.settings.githubToken);
+					if (res.success) {
+						new Notice("🔄 GitFacil: Bóveda actualizada desde la nube ✅");
+					}
+				}
+			} catch {
+				// Silencioso al inicio
+			} finally {
+				void this.refreshGitStatus();
+			}
+			return;
+		}
+
 		const basePath = getVaultBasePath(this.app);
 		if (!basePath) return;
 		try {
@@ -323,6 +368,24 @@ export default class GitFacilPlugin extends Plugin {
 		this.isSyncing = true;
 		this.updateStatusBar("syncing");
 		try {
+			const token = this.settings.githubToken?.trim() || undefined;
+
+			// En móvil o dispositivos sin Git nativo usamos el motor independiente isomorphic-git
+			if (!Platform.isDesktop) {
+				new Notice(t("noticeCommitting"));
+				const commitMessage = getCommitMessage(
+					this.settings.commitMessageTemplate,
+				);
+				const res = await mobileCommitAndPush(this.app, commitMessage, token);
+				new Notice(res.message);
+				if (res.success) {
+					this.updateStatusBar("idle");
+				} else {
+					this.updateStatusBar("error");
+				}
+				return;
+			}
+
 			const basePath = getVaultBasePath(this.app);
 			if (!basePath) {
 				new Notice(t("errVaultPath"));
@@ -330,10 +393,19 @@ export default class GitFacilPlugin extends Plugin {
 			}
 
 			const gitPath = this.settings.customGitPath;
-			const token = this.settings.githubToken?.trim() || undefined;
 			const installed = await isGitInstalled(gitPath);
 			if (!installed) {
-				new Notice(t("errGitNotInstalled"));
+				new Notice("Git nativo no detectado, usando motor independiente...");
+				const commitMessage = getCommitMessage(
+					this.settings.commitMessageTemplate,
+				);
+				const res = await mobileCommitAndPush(this.app, commitMessage, token);
+				new Notice(res.message);
+				if (res.success) {
+					this.updateStatusBar("idle");
+				} else {
+					this.updateStatusBar("error");
+				}
 				return;
 			}
 

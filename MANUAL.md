@@ -15,6 +15,7 @@ Todo GitFacil vive en la **paleta de comandos**: pulsa **`Ctrl+P`** (o `Cmd+P` e
 | GitFacil: Commit y Push | Sube todo ahora mismo |
 | GitFacil: Abrir panel de Estado de Git | Abre el panel lateral |
 | GitFacil: Abrir asistente de configuración | Abre el 🪄 asistente (paso 2) |
+| GitFacil: Clonar bóveda desde GitHub | Clona tu repo completo en móvil o PC sin terminal |
 
 Además: icono **🚀** en la cinta izquierda (commit+push) e icono de estado (panel).
 
@@ -28,7 +29,7 @@ Además: icono **🚀** en la cinta izquierda (commit+push) e icono de estado (p
 
 **Manual:** descarga `main.js`, `manifest.json` y `styles.css` del último [Release](https://github.com/Alecwce/obsidian-git-facil/releases) y cópialos en tu bóveda en `.obsidian/plugins/git-facil/`.
 
-Requisito: tener [Git](https://git-scm.com) instalado.
+Requisito en escritorio: tener [Git](https://git-scm.com) instalado. En móvil (Android/iOS) no necesitas instalar nada; funciona de forma 100% autónoma.
 
 ## 2. Asistente de configuración / Setup wizard (3 pasos)
 
@@ -51,6 +52,19 @@ Si tienes [GitHub CLI (`gh`)](https://cli.github.com) instalado y con sesión (`
 ### Token manual (sin `gh`)
 
 Si no tienes `gh`, el paso 3 tiene una caja de **token**: pégalo (campo password), pulsa **Verificar y guardar**. Se comprueba contra `api.github.com` y se guarda en la carpeta del plugin **en texto plano**: crea un token con el scope `repo` mínimo y revócalo si lo expones. Puedes borrarlo cuando quieras desde el mismo sitio.
+
+### 📥 Clonar bóveda existente en Móvil o PC (sin terminal) / Clone Vault
+
+Si ya tienes un repositorio en GitHub (por ejemplo creado desde tu PC) y quieres tenerlo en tu móvil Android/iOS o en otra computadora sin tocar la consola:
+
+1. Abre la paleta de comandos (`Ctrl+P` o desliza hacia abajo en móvil).
+2. Selecciona **GitFacil: Clonar bóveda desde GitHub** (o usa el botón **📥 Clonar bóveda remota** dentro del Asistente).
+3. Introduce:
+   - **URL de GitHub:** `https://github.com/usuario/repo.git`
+   - **Token (PAT):** Tu Personal Access Token con permiso `repo`.
+   - **Rama:** `main` (o la que uses).
+4. Pulsa **📥 Clonar bóveda completa**.
+5. GitFacil descargará el historial y todos tus archivos directamente usando el motor autónomo de JavaScript.
 
 ## 3. Uso diario / Daily use
 
@@ -103,7 +117,7 @@ Aunque no tengas cambios locales, cada ronda comprueba el remoto y **baja lo nue
 
 - **¿Mis notas salen de mi máquina?** Solo hacia tu propio repositorio Git (GitHub o el que configures). El plugin no envía nada a terceros.
 - **🔐 ¿Mis notas serán públicas?** Depende de tu repositorio: todo lo que Git rastree en tu bóveda se sube al remoto. Usa un repositorio **privado** si tus notas no deben ser públicas, y revisa con `git status` qué se rastrea antes del primer push.
-- **¿Funciona en móvil?** No, es solo escritorio (`isDesktopOnly`): necesita Git instalado en el sistema.
+- **¿Funciona en móvil (Android e iOS)?** ¡Sí! A partir de la versión 1.8.2, GitFacil incluye un motor Git autónomo embebido (`isomorphic-git`). No necesitas Termux ni instalar nada externo. Puedes clonar, hacer commit, push, pull y activar auto-sync directo desde la app móvil de Obsidian con tu Personal Access Token (PAT).
 - **¿Qué pasa si edito mientras sincroniza?** Nada malo: el auto-sync se salta esa ronda y la siguiente lo sube.
-- **🔍 Encuentra todo con `Ctrl+P`:** escribe GitFacil para ver los 3 comandos (commit, panel, asistente). Es la forma más rápida de usar el plugin.
+- **🔍 Encuentra todo con `Ctrl+P`:** escribe GitFacil para ver todos los comandos (commit, panel, asistente, clonar). Es la forma más rápida de usar el plugin.
 - **¿Dónde reporto errores?** En [Issues](https://github.com/Alecwce/obsidian-git-facil/issues) con la versión del plugin, de Obsidian y tu sistema.

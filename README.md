@@ -8,17 +8,20 @@
 
 ## Why GitFacil? / ¿Por qué GitFacil?
 
-| GitFacil                         | Git CLI |
-| -------------------------------- | ------- |
-| One-click backup                 | ✅ |
-| Setup wizard, no terminal needed  | ✅ |
-| Status panel with file selection | ✅ |
-| Auto backup every N minutes      | ✅ |
-| Advanced Git operations          | ❌ |
-| Mobile support                   | ❌ |
-| Real-time sync                   | ❌ |
+| Feature / Característica | GitFacil | Standard Git CLI |
+| -------------------------------- | :---: | :---: |
+| One-click backup & push / Respaldo en 1 clic | ✅ | ❌ |
+| Setup wizard, no terminal needed / Asistente sin consola | ✅ | ❌ |
+| Status panel with file selection / Panel con selección | ✅ | ❌ |
+| Auto backup every N minutes / Respaldo programado | ✅ | ❌ |
+| Interactive status bar / Barra de estado en vivo | ✅ | ❌ |
+| 📥 1-Click Vault Clone / Clonar bóveda en 1 clic | ✅ | ❌ |
+| 📱 Full Mobile Support (Android/iOS) without Termux | ✅ | ❌ |
+| Anti-panic conflict recovery / Recuperación anti-pánico | ✅ | ❌ |
 
-**Limitations:** desktop only (needs system Git), no diff viewer, no history browser, no conflict editor — on push conflicts use the guided sync button.
+**Dual Engine Architecture / Arquitectura de Motor Dual:**
+- **Desktop (Windows/Mac/Linux):** Native Git CLI for maximum speed and repository support.
+- **Mobile (Android/iOS) & Standalone:** Pure JavaScript `isomorphic-git` engine with Obsidian native `requestUrl` and `vault.adapter` — zero external terminal or Termux required!
 
 ---
 

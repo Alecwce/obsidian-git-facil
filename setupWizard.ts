@@ -1,4 +1,5 @@
 import { type App, Modal, requestUrl } from "obsidian";
+import { CloneVaultModal } from "./cloneModal";
 import {
 	checkRemoteAuth,
 	getCommitMessage,
@@ -44,6 +45,21 @@ export class SetupWizardModal extends Modal {
 
 		contentEl.createEl("p", {
 			text: t("wizardSubtitle"),
+		});
+
+		// Opción rápida para usuarios con repositorio existente
+		const cloneCard = contentEl.createDiv({ cls: "wizard-step" });
+		cloneCard.createEl("h3", { text: "📥 ¿Ya tienes una bóveda en GitHub?" });
+		cloneCard.createEl("p", {
+			text: "Si ya tienes tus notas respaldadas en GitHub, descárgalas en este dispositivo con un solo clic.",
+		});
+		const cloneBtn = cloneCard.createEl("button", {
+			text: "📥 Clonar Bóveda Existente",
+			cls: "mod-cta",
+		});
+		cloneBtn.addEventListener("click", () => {
+			this.close();
+			new CloneVaultModal(this.app, this.plugin).open();
 		});
 
 		// --- PASO 1 ---
