@@ -8,7 +8,6 @@ import { checkRemoteAuth } from "./gitHelper";
 import { t } from "./i18n";
 import type GitFacilPlugin from "./main";
 import { DEFAULT_SETTINGS } from "./main";
-import { getVaultBasePath } from "./vault";
 
 export class GitFacilSettingTab extends PluginSettingTab {
 	plugin: GitFacilPlugin;
@@ -107,14 +106,18 @@ export class GitFacilSettingTab extends PluginSettingTab {
 		const container = this.containerEl;
 
 		// Card de Token y Conexión Rápida
-		const tokenSection = container.createDiv({ cls: "git-facil-settings-card" });
+		const tokenSection = container.createDiv({
+			cls: "git-facil-settings-card",
+		});
 		tokenSection.style.margin = "18px 0";
 		tokenSection.style.padding = "14px";
 		tokenSection.style.borderRadius = "8px";
 		tokenSection.style.backgroundColor = "var(--background-secondary)";
 		tokenSection.style.border = "1px solid var(--background-modifier-border)";
 
-		tokenSection.createEl("h3", { text: "🔑 Conexión Rápida con GitHub (PAT)" });
+		tokenSection.createEl("h3", {
+			text: "🔑 Conexión Rápida con GitHub (PAT)",
+		});
 		tokenSection.createEl("p", {
 			text: "Para sincronizar con repositorios privados sin ingresar tu contraseña manualmente, genera un Token de Acceso Personal (PAT) con permiso 'repo'.",
 			cls: "setting-item-description",

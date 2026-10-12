@@ -42,6 +42,8 @@ export default class GitFacilPlugin extends Plugin {
 	settings: GitFacilSettings = DEFAULT_SETTINGS;
 	private syncIntervalId: number | null = null;
 	private isSyncing = false;
+	private statusBarEl: HTMLElement | null = null;
+	private statusDebounceTimer: number | null = null;
 
 	override async onload() {
 		await this.loadSettings();
@@ -87,10 +89,103 @@ export default class GitFacilPlugin extends Plugin {
 		this.addSettingTab(new GitFacilSettingTab(this.app, this));
 		this.configureAutoSync();
 
+		// Inicializar barra de estado interactiva
+		this.statusBarEl = this.addStatusBarItem();
+		this.statusBarEl.addClass("git-facil-status-bar");
+		this.statusBarEl.addClass("mod-clickable");
+		this.statusBarEl.setAttribute(
+			"aria-label",
+			"Git Fácil: Estado de sincronización",
+		);
+		this.statusBarEl.addEventListener("click", () => {
+			void this.handleCommitAndPush();
+		});
+		this.updateStatusBar("idle");
+
+		// Escuchar eventos de la bóveda para reflejar cambios en tiempo real
+		const onVaultChange = () => {
+			this.triggerDebouncedStatusCheck();
+		};
+		this.registerEvent(this.app.vault.on("create", onVaultChange));
+		this.registerEvent(this.app.vault.on("modify", onVaultChange));
+		this.registerEvent(this.app.vault.on("delete", onVaultChange));
+		this.registerEvent(this.app.vault.on("rename", onVaultChange));
+
 		if (this.settings.syncOnStartup) {
 			window.setTimeout(() => {
 				void this.handleStartupSync();
 			}, 3000);
+		} else {
+			window.setTimeout(() => {
+				void this.refreshGitStatus();
+			}, 1000);
+		}
+	}
+
+	updateStatusBar(status: "idle" | "syncing" | "dirty" | "error", count = 0) {
+		if (!this.statusBarEl) return;
+		this.statusBarEl.removeClass(
+			"status-idle",
+			"status-syncing",
+			"status-dirty",
+			"status-error",
+		);
+		this.statusBarEl.addClass(`status-${status}`);
+		if (status === "syncing") {
+			this.statusBarEl.setText("⏳ Git: Sincronizando...");
+			this.statusBarEl.setAttribute(
+				"title",
+				"Sincronizando notas con GitHub...",
+			);
+		} else if (status === "dirty") {
+			this.statusBarEl.setText(
+				`🟡 Git: ${count} cambio${count > 1 ? "s" : ""} (Subir)`,
+			);
+			this.statusBarEl.setAttribute(
+				"title",
+				`Hay ${count} cambio${count > 1 ? "s" : ""} sin subir. Haz clic para guardar y sincronizar.`,
+			);
+		} else if (status === "error") {
+			this.statusBarEl.setText("🔴 Git: Error / Atención");
+			this.statusBarEl.setAttribute(
+				"title",
+				"Error o conflicto de sincronización. Haz clic para reintentar.",
+			);
+		} else {
+			this.statusBarEl.setText("🟢 Git: Al día");
+			this.statusBarEl.setAttribute(
+				"title",
+				"Todas tus notas están sincronizadas con la nube.",
+			);
+		}
+	}
+
+	triggerDebouncedStatusCheck() {
+		if (this.statusDebounceTimer !== null) {
+			window.clearTimeout(this.statusDebounceTimer);
+		}
+		this.statusDebounceTimer = window.setTimeout(() => {
+			void this.refreshGitStatus();
+		}, 1500);
+	}
+
+	async refreshGitStatus() {
+		if (this.isSyncing) return;
+		const basePath = getVaultBasePath(this.app);
+		if (!basePath) return;
+		try {
+			const status = await checkGitStatusPorcelain(
+				basePath,
+				this.settings.customGitPath,
+			);
+			if (!status) {
+				this.updateStatusBar("idle");
+			} else {
+				const lines = status.split("\n").filter((l) => l.trim().length > 0);
+				this.updateStatusBar("dirty", lines.length);
+			}
+		} catch {
+			// Silencioso si no es repositorio inicializado
 		}
 	}
 
@@ -110,11 +205,13 @@ export default class GitFacilPlugin extends Plugin {
 				this.settings.customGitPath,
 				this.settings.githubToken,
 			);
-			if (res.status === "synced") {
+			if (res.pulled) {
 				new Notice("🔄 GitFacil: Bóveda actualizada desde la nube ✅");
 			}
 		} catch {
 			// Silencioso al inicio para no molestar si no hay red
+		} finally {
+			void this.refreshGitStatus();
 		}
 	}
 
@@ -122,6 +219,10 @@ export default class GitFacilPlugin extends Plugin {
 		if (this.syncIntervalId !== null) {
 			window.clearInterval(this.syncIntervalId);
 			this.syncIntervalId = null;
+		}
+		if (this.statusDebounceTimer !== null) {
+			window.clearTimeout(this.statusDebounceTimer);
+			this.statusDebounceTimer = null;
 		}
 	}
 
@@ -220,6 +321,7 @@ export default class GitFacilPlugin extends Plugin {
 			return;
 		}
 		this.isSyncing = true;
+		this.updateStatusBar("syncing");
 		try {
 			const basePath = getVaultBasePath(this.app);
 			if (!basePath) {
@@ -274,6 +376,7 @@ export default class GitFacilPlugin extends Plugin {
 
 			new Notice(t("noticeCommitPushSuccess"));
 		} catch (error) {
+			this.updateStatusBar("error");
 			const message = error instanceof Error ? error.message : String(error);
 			if (isPushRejectedMessage(message)) {
 				const basePath = getVaultBasePath(this.app);
@@ -285,6 +388,7 @@ export default class GitFacilPlugin extends Plugin {
 			new Notice(t("noticeError", { msg: message }));
 		} finally {
 			this.isSyncing = false;
+			void this.refreshGitStatus();
 		}
 	}
 }

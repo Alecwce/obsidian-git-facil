@@ -95,6 +95,7 @@ export class GitStatusView extends ItemView {
 				);
 				new Notice(res.message);
 				await this.refreshView();
+				void this.plugin.refreshGitStatus();
 			})();
 		});
 
@@ -159,6 +160,7 @@ export class GitStatusView extends ItemView {
 					new Notice(res.message);
 				}
 				await this.refreshView();
+				void this.plugin.refreshGitStatus();
 			})();
 		});
 

@@ -1,6 +1,34 @@
 /* Estilos para el plugin GitFacil */
 .git-facil-status-bar {
-	font-weight: bold;
+	cursor: pointer;
+	padding: 0 4px;
+	border-radius: 4px;
+	transition: background-color 0.2s ease;
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 0.85em;
+}
+
+.git-facil-status-bar:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.git-facil-status-bar.status-dirty {
+	color: var(--text-warning, #eab308);
+	font-weight: 500;
+}
+
+.git-facil-status-bar.status-syncing {
+	color: var(--text-accent, #3b82f6);
+}
+
+.git-facil-status-bar.status-idle {
+	color: var(--text-muted);
+}
+
+.git-facil-status-bar.status-error {
+	color: var(--text-error, #ef4444);
 }
 
 .git-facil-wizard .wizard-modal-header {
