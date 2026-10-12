@@ -128,9 +128,10 @@ export class CloneVaultModal extends Modal {
 					progressBox.addClass("wizard-success");
 					new Notice(res.message);
 
-					// Guardar token en configuración si se ingresó
-					if (this.token) {
-						this.plugin.settings.githubToken = this.token;
+					// Recargar configuración si vino data.json en el repo, conservando el token ingresado
+					await this.plugin.loadSettings();
+					if (cleanToken) {
+						this.plugin.settings.githubToken = cleanToken;
 						await this.plugin.saveSettings();
 					}
 

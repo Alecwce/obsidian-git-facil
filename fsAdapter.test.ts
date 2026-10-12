@@ -140,4 +140,36 @@ describe("ObsidianIsomorphicFsAdapter", () => {
 		});
 		expect(content).toBe("objeto git");
 	});
+
+	it("debería soportar checkout con force: true sobreescribiendo archivos preexistentes", async () => {
+		const git = await import("isomorphic-git");
+		const mock = new MockDataAdapter();
+		const fs = new ObsidianIsomorphicFsAdapter(mock as unknown as DataAdapter);
+
+		// Inicializar repo en mock fs
+		await git.default.init({ fs, dir: "", defaultBranch: "main" });
+		await fs.promises.writeFile("nota.md", "remoto");
+		await git.default.add({ fs, dir: "", filepath: "nota.md" });
+		await git.default.commit({
+			fs,
+			dir: "",
+			message: "commit inicial",
+			author: { name: "test", email: "test@example.com" },
+		});
+
+		// Simular archivo local preexistente con contenido diferente y sin index
+		await fs.promises.writeFile("nota.md", "local conflictivo");
+		await fs.promises.unlink(".git/index");
+
+		// Checkout forzado debe sobreescribir sin arrojar CheckoutConflictError
+		await git.default.checkout({
+			fs,
+			dir: "",
+			ref: "main",
+			force: true,
+		});
+
+		const res = await fs.promises.readFile("nota.md", { encoding: "utf8" });
+		expect(res).toBe("remoto");
+	});
 });

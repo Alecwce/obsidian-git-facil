@@ -40,20 +40,48 @@ export async function cloneVault(
 	onProgress?: (phase: string, loaded: number, total: number) => void,
 ): Promise<MobileGitResult> {
 	const fs = new ObsidianIsomorphicFsAdapter(app.vault.adapter);
+	const targetBranch = branch.trim() || "main";
 	try {
+		// Limpiar residuo de .git si una clonación previa falló a la mitad
+		if (await app.vault.adapter.exists(".git")) {
+			try {
+				await app.vault.adapter.rmdir(".git", true);
+			} catch {
+				// Ignorar si no se puede eliminar
+			}
+		}
+
 		await git.clone({
 			fs,
 			http: obsidianHttpClient,
 			dir: "",
 			url: url.trim(),
-			ref: branch.trim() || "main",
+			ref: targetBranch,
 			singleBranch: true,
 			depth: 1,
+			noCheckout: true,
 			onAuth: getAuthCallback(token),
 			onProgress: (event) => {
 				onProgress?.(event.phase, event.loaded, event.total);
 			},
 		});
+
+		const current =
+			(await git.currentBranch({ fs, dir: "", fullname: false })) ||
+			targetBranch;
+
+		// Checkout con force: true para sobreescribir limpiamente archivos iniciales
+		// generados por Obsidian (.obsidian/app.json, plugins, etc.) sin CheckoutConflictError
+		await git.checkout({
+			fs,
+			dir: "",
+			ref: current,
+			force: true,
+			onProgress: (event) => {
+				onProgress?.(event.phase, event.loaded, event.total);
+			},
+		});
+
 		return {
 			success: true,
 			message: "✅ Bóveda clonada exitosamente desde GitHub.",
