@@ -228,3 +228,111 @@ export async function mobileGetPendingCount(app: App): Promise<number> {
 		return 0;
 	}
 }
+
+export interface MobileFileStatus {
+	path: string;
+	status: string;
+}
+
+export interface MobileStatusResult {
+	ok: boolean;
+	branch: string;
+	files: MobileFileStatus[];
+	error?: string;
+}
+
+export async function mobileGetStatus(app: App): Promise<MobileStatusResult> {
+	const fs = new ObsidianIsomorphicFsAdapter(app.vault.adapter);
+	try {
+		if (!(await app.vault.adapter.exists(".git"))) {
+			return {
+				ok: false,
+				branch: "main",
+				files: [],
+				error: "Git no inicializado en la bóveda",
+			};
+		}
+		const branch =
+			(await git.currentBranch({ fs, dir: "", fullname: false })) || "main";
+		const matrix = await git.statusMatrix({ fs, dir: "" });
+		const files: MobileFileStatus[] = [];
+
+		for (const [filepath, head, workdir, stage] of matrix) {
+			if (
+				filepath.startsWith(".trash") ||
+				filepath.includes("workspace") ||
+				filepath === ".git"
+			) {
+				continue;
+			}
+
+			if (head === 1 && workdir === 1 && stage === 1) {
+				continue;
+			}
+
+			let status = "M";
+			if (workdir === 0) {
+				status = "D";
+			} else if (head === 0 && stage === 0) {
+				status = "?";
+			} else if (head === 0) {
+				status = "A";
+			} else if (workdir === 2 || stage !== 1) {
+				status = "M";
+			}
+
+			files.push({ path: filepath, status });
+		}
+
+		return { ok: true, branch, files };
+	} catch (error) {
+		const msg = error instanceof Error ? error.message : String(error);
+		return { ok: false, branch: "main", files: [], error: msg };
+	}
+}
+
+export async function mobileCommitAndPushSelectedFiles(
+	app: App,
+	files: string[],
+	commitMessage: string,
+	token?: string,
+	authorName = "Obsidian User",
+	authorEmail = "obsidian@user.local",
+): Promise<MobileGitResult> {
+	const fs = new ObsidianIsomorphicFsAdapter(app.vault.adapter);
+	try {
+		for (const filepath of files) {
+			const exists = await app.vault.adapter.exists(filepath);
+			if (exists) {
+				await git.add({ fs, dir: "", filepath });
+			} else {
+				await git.remove({ fs, dir: "", filepath });
+			}
+		}
+
+		await git.commit({
+			fs,
+			dir: "",
+			message: commitMessage,
+			author: { name: authorName, email: authorEmail },
+		});
+
+		await git.push({
+			fs,
+			http: obsidianHttpClient,
+			dir: "",
+			onAuth: getAuthCallback(token),
+		});
+
+		return {
+			success: true,
+			message: "🚀 Archivos seleccionados sincronizados con éxito.",
+		};
+	} catch (error) {
+		const msg = error instanceof Error ? error.message : String(error);
+		return {
+			success: false,
+			message: `❌ Error al subir cambios: ${msg}`,
+		};
+	}
+}

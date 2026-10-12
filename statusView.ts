@@ -1,4 +1,4 @@
-import { ItemView, Notice, type WorkspaceLeaf } from "obsidian";
+import { ItemView, Notice, Platform, type WorkspaceLeaf } from "obsidian";
 import {
 	commitAndPushSelectedFiles,
 	getAheadBehind,
@@ -9,6 +9,11 @@ import {
 } from "./gitHelper";
 import { t } from "./i18n";
 import type GitFacilPlugin from "./main";
+import {
+	mobileCommitAndPushSelectedFiles,
+	mobileGetStatus,
+	mobilePull,
+} from "./mobileGit";
 import { getVaultBasePath } from "./vault";
 
 export const GIT_STATUS_VIEW_TYPE = "git-facil-status-view";
@@ -48,18 +53,27 @@ export class GitStatusView extends ItemView {
 
 		const branchLine = header.createSpan({ cls: "status-branch-line" });
 		void (async () => {
-			const bp = getVaultBasePath(this.app);
-			if (!bp) return;
-			const gitPath = this.plugin.settings.customGitPath;
-			const [branch, { ahead, behind, hasUpstream }] = await Promise.all([
-				getCurrentBranch(bp, gitPath),
-				getAheadBehind(bp, gitPath),
-			]);
-			branchLine.setText(
-				hasUpstream
-					? t("statusPanelBranchLine", { branch, ahead, behind })
-					: t("statusPanelBranchNoUpstream", { branch }),
-			);
+			if (!Platform.isDesktop) {
+				const status = await mobileGetStatus(this.app);
+				branchLine.setText(
+					status.ok
+						? `📍 ${status.branch} (Móvil)`
+						: "⚠️ Git móvil no inicializado",
+				);
+			} else {
+				const bp = getVaultBasePath(this.app);
+				if (!bp) return;
+				const gitPath = this.plugin.settings.customGitPath;
+				const [branch, { ahead, behind, hasUpstream }] = await Promise.all([
+					getCurrentBranch(bp, gitPath),
+					getAheadBehind(bp, gitPath),
+				]);
+				branchLine.setText(
+					hasUpstream
+						? t("statusPanelBranchLine", { branch, ahead, behind })
+						: t("statusPanelBranchNoUpstream", { branch }),
+				);
+			}
 		})();
 
 		const refreshIconBtn = titleEl.createEl("button", {
@@ -85,40 +99,62 @@ export class GitStatusView extends ItemView {
 		});
 		btnPull.addEventListener("click", () => {
 			void (async () => {
-				const basePath = getVaultBasePath(this.app);
-				if (!basePath) return;
 				new Notice(t("statusPanelPulling"));
-				const res = await pullGitChanges(
-					basePath,
-					this.plugin.settings.customGitPath,
-					this.plugin.settings.githubToken || undefined,
-				);
-				new Notice(res.message);
+				if (!Platform.isDesktop) {
+					const res = await mobilePull(
+						this.app,
+						this.plugin.settings.githubToken || undefined,
+					);
+					new Notice(res.message);
+				} else {
+					const basePath = getVaultBasePath(this.app);
+					if (!basePath) return;
+					const res = await pullGitChanges(
+						basePath,
+						this.plugin.settings.customGitPath,
+						this.plugin.settings.githubToken || undefined,
+					);
+					new Notice(res.message);
+				}
 				await this.refreshView();
 				void this.plugin.refreshGitStatus();
 			})();
 		});
 
-		const basePath = getVaultBasePath(this.app);
-		if (!basePath) {
-			containerEl.createDiv({
-				text: t("errVaultPath"),
-				cls: "wizard-error",
-			});
-			return;
+		let changedFiles: { path: string; status: string }[] = [];
+		if (!Platform.isDesktop) {
+			const mobileStatus = await mobileGetStatus(this.app);
+			if (!mobileStatus.ok) {
+				const errBox = containerEl.createDiv({ cls: "status-empty-state" });
+				errBox.createEl("h2", { text: t("statusPanelErrorTitle") });
+				errBox.createEl("p", {
+					text: mobileStatus.error || t("statusPanelErrorDesc"),
+				});
+				return;
+			}
+			changedFiles = mobileStatus.files;
+		} else {
+			const basePath = getVaultBasePath(this.app);
+			if (!basePath) {
+				containerEl.createDiv({
+					text: t("errVaultPath"),
+					cls: "wizard-error",
+				});
+				return;
+			}
+
+			const gitPath = this.plugin.settings.customGitPath;
+			const status = await getGitStatusResult(basePath, gitPath);
+
+			if (!status.ok) {
+				const errBox = containerEl.createDiv({ cls: "status-empty-state" });
+				errBox.createEl("h2", { text: t("statusPanelErrorTitle") });
+				errBox.createEl("p", { text: t("statusPanelErrorDesc") });
+				return;
+			}
+			changedFiles = status.files;
 		}
 
-		const gitPath = this.plugin.settings.customGitPath;
-		const status = await getGitStatusResult(basePath, gitPath);
-
-		if (!status.ok) {
-			const errBox = containerEl.createDiv({ cls: "status-empty-state" });
-			errBox.createEl("h2", { text: t("statusPanelErrorTitle") });
-			errBox.createEl("p", { text: t("statusPanelErrorDesc") });
-			return;
-		}
-
-		const changedFiles = status.files;
 		if (changedFiles.length === 0) {
 			const emptyState = containerEl.createDiv({ cls: "status-empty-state" });
 			emptyState.createEl("h2", { text: t("statusPanelCleanTitle") });
@@ -145,19 +181,31 @@ export class GitStatusView extends ItemView {
 				const msg = getCommitMessage(
 					this.plugin.settings.commitMessageTemplate,
 				);
-				const res = await commitAndPushSelectedFiles(
-					basePath,
-					filesToCommit,
-					msg,
-					this.plugin.settings.customGitPath,
-					this.plugin.settings.githubToken || undefined,
-				);
-				if (res.pushRejected) {
-					this.plugin.showAntiPanicNotice(basePath, () => {
-						void this.refreshView();
-					});
-				} else {
+				if (!Platform.isDesktop) {
+					const res = await mobileCommitAndPushSelectedFiles(
+						this.app,
+						filesToCommit,
+						msg,
+						this.plugin.settings.githubToken || undefined,
+					);
 					new Notice(res.message);
+				} else {
+					const basePath = getVaultBasePath(this.app);
+					if (!basePath) return;
+					const res = await commitAndPushSelectedFiles(
+						basePath,
+						filesToCommit,
+						msg,
+						this.plugin.settings.customGitPath,
+						this.plugin.settings.githubToken || undefined,
+					);
+					if (res.pushRejected) {
+						this.plugin.showAntiPanicNotice(basePath, () => {
+							void this.refreshView();
+						});
+					} else {
+						new Notice(res.message);
+					}
 				}
 				await this.refreshView();
 				void this.plugin.refreshGitStatus();
