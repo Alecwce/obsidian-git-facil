@@ -17,6 +17,17 @@ export const en: Record<TranslationKeys, string> = {
 	autoSyncDesc: "Automatically sync changes at regular intervals.",
 	autoSyncIntervalName: "Auto-sync interval (minutes)",
 	autoSyncIntervalDesc: "Time in minutes between each automatic sync.",
+	syncOnStartupName: "Sync on startup",
+	syncOnStartupDesc:
+		"Automatically download remote changes (Pull) when opening Obsidian to avoid conflicts with mobile.",
+	githubTokenName: "Personal Access Token (GitHub PAT)",
+	githubTokenDesc:
+		"Token with 'repo' scope to securely authenticate with private repositories in the cloud.",
+	githubTokenPlaceholder: "ghp_xxxxxxxxxxxxxxxxxxxx",
+	btnGenerateToken: "🔑 Generate GitHub Token (1 Click)",
+	btnTestToken: "🧪 Test GitHub Connection",
+	noticeTestTokenSuccess: "✅ GitHub connection successful.",
+	noticeTestTokenFail: "❌ GitHub authentication error.",
 	customGitPathName: "Custom Git binary path",
 	customGitPathDesc:
 		"Optional: If Git is not automatically detected (e.g. macOS/Linux), enter the absolute path to the git executable (e.g. /usr/bin/git or /usr/local/bin/git).",

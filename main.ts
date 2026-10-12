@@ -23,6 +23,7 @@ export interface GitFacilSettings {
 	commitMessageTemplate: string;
 	autoSyncEnabled: boolean;
 	autoSyncIntervalMinutes: number;
+	syncOnStartup: boolean;
 	customGitPath: string;
 	githubToken: string;
 }
@@ -32,6 +33,7 @@ export const DEFAULT_SETTINGS: GitFacilSettings = {
 	commitMessageTemplate: "📝 notas {fecha}",
 	autoSyncEnabled: false,
 	autoSyncIntervalMinutes: 10,
+	syncOnStartup: true,
 	customGitPath: "",
 	githubToken: "",
 };
@@ -84,6 +86,36 @@ export default class GitFacilPlugin extends Plugin {
 
 		this.addSettingTab(new GitFacilSettingTab(this.app, this));
 		this.configureAutoSync();
+
+		if (this.settings.syncOnStartup) {
+			window.setTimeout(() => {
+				void this.handleStartupSync();
+			}, 3000);
+		}
+	}
+
+	private async handleStartupSync() {
+		const basePath = getVaultBasePath(this.app);
+		if (!basePath) return;
+		try {
+			const isRepo = await isGitRepo(basePath, this.settings.customGitPath);
+			if (!isRepo) return;
+			const hasRemote = await hasOriginRemote(
+				basePath,
+				this.settings.customGitPath,
+			);
+			if (!hasRemote) return;
+			const res = await syncCleanTree(
+				basePath,
+				this.settings.customGitPath,
+				this.settings.githubToken,
+			);
+			if (res.status === "synced") {
+				new Notice("🔄 GitFacil: Bóveda actualizada desde la nube ✅");
+			}
+		} catch {
+			// Silencioso al inicio para no molestar si no hay red
+		}
 	}
 
 	override onunload() {

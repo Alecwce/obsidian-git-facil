@@ -17,6 +17,17 @@ export const es = {
 	autoSyncIntervalName: "Intervalo de Auto-sync (minutos)",
 	autoSyncIntervalDesc:
 		"Tiempo en minutos entre cada sincronización automática.",
+	syncOnStartupName: "Sincronizar al iniciar",
+	syncOnStartupDesc:
+		"Descarga automáticamente los cambios de la nube (Pull) al abrir Obsidian para evitar conflictos si editaste desde el móvil.",
+	githubTokenName: "Token de acceso personal (GitHub PAT)",
+	githubTokenDesc:
+		"Token con permiso 'repo' para autenticar de forma segura con repositorios privados en la nube.",
+	githubTokenPlaceholder: "ghp_xxxxxxxxxxxxxxxxxxxx",
+	btnGenerateToken: "🔑 Generar Token en GitHub (1 Clic)",
+	btnTestToken: "🧪 Probar Conexión con GitHub",
+	noticeTestTokenSuccess: "✅ Conexión con GitHub exitosa.",
+	noticeTestTokenFail: "❌ Error de autenticación con GitHub.",
 	customGitPathName: "Ruta personalizada de Git",
 	customGitPathDesc:
 		"Opcional: Si Git no se detecta automáticamente (ej. macOS/Linux), ingresa la ruta absoluta al ejecutable (ej. /usr/bin/git o /usr/local/bin/git).",
