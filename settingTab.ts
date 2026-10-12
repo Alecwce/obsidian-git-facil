@@ -2,6 +2,7 @@ import {
 	type App,
 	Notice,
 	PluginSettingTab,
+	requestUrl,
 	type SettingDefinitionItem,
 } from "obsidian";
 import { t } from "./i18n";
@@ -103,7 +104,6 @@ export class GitFacilSettingTab extends PluginSettingTab {
 						}
 						new Notice("🔍 Probando autenticación con GitHub...");
 						try {
-							const { requestUrl } = await import("obsidian");
 							const res = await requestUrl({
 								url: "https://api.github.com/user",
 								method: "GET",
