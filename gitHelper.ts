@@ -1,9 +1,32 @@
-import { execFile } from "node:child_process";
-import process from "node:process";
-import { promisify } from "node:util";
+import { Platform } from "obsidian";
 import { t } from "./i18n";
 
-const execFileAsync = promisify(execFile);
+type ExecFileFn = (
+	file: string,
+	args: string[],
+	options: unknown,
+) => Promise<{ stdout: string; stderr: string }>;
+
+let cachedExecFile: ExecFileFn | null = null;
+
+async function getExecFileAsync(): Promise<ExecFileFn> {
+	if (!Platform.isDesktop) {
+		throw new Error(
+			"📱 Las operaciones nativas de Git requieren entorno de escritorio o terminal.",
+		);
+	}
+	if (cachedExecFile) return cachedExecFile;
+
+	try {
+		const cp = await import("node:child_process");
+		const util = await import("node:util");
+		cachedExecFile = util.promisify(cp.execFile) as unknown as ExecFileFn;
+		return cachedExecFile;
+	} catch (error) {
+		const msg = error instanceof Error ? error.message : String(error);
+		throw new Error(`❌ No se pudo cargar el ejecutable de Git: ${msg}`);
+	}
+}
 
 const GIT_TIMEOUT_MS = 30_000;
 const GIT_REMOTE_TIMEOUT_MS = 120_000;
@@ -46,7 +69,8 @@ async function execGitFile(
 	opts: ExecGitOpts = {},
 ): Promise<{ stdout: string; stderr: string }> {
 	try {
-		const { stdout, stderr } = await execFileAsync(
+		const execFile = await getExecFileAsync();
+		const { stdout, stderr } = await execFile(
 			git,
 			withAuthHeader(args, opts.token),
 			gitOpts(cwd, opts.remote),
@@ -112,9 +136,11 @@ export function getCommitMessage(
 }
 
 export async function isGitInstalled(gitPath?: string): Promise<boolean> {
+	if (!Platform.isDesktop) return false;
 	const git = resolveGit(gitPath);
 	try {
-		await execFileAsync(git, ["--version"], { timeout: GIT_TIMEOUT_MS });
+		const execFile = await getExecFileAsync();
+		await execFile(git, ["--version"], { timeout: GIT_TIMEOUT_MS });
 		return true;
 	} catch {
 		return false;
@@ -125,9 +151,11 @@ export async function getGitVersion(gitPath?: string): Promise<{
 	success: boolean;
 	version?: string;
 }> {
+	if (!Platform.isDesktop) return { success: false };
 	const git = resolveGit(gitPath);
 	try {
-		const { stdout } = await execFileAsync(git, ["--version"], {
+		const execFile = await getExecFileAsync();
+		const { stdout } = await execFile(git, ["--version"], {
 			timeout: GIT_TIMEOUT_MS,
 		});
 		return { success: true, version: stdout.trim() };
@@ -668,7 +696,8 @@ async function execGhFile(
 	cwd: string,
 ): Promise<{ stdout: string; stderr: string }> {
 	try {
-		const { stdout, stderr } = await execFileAsync("gh", args, {
+		const execFile = await getExecFileAsync();
+		const { stdout, stderr } = await execFile("gh", args, {
 			cwd,
 			timeout: GIT_REMOTE_TIMEOUT_MS,
 		});
@@ -680,8 +709,10 @@ async function execGhFile(
 }
 
 export async function isGhInstalled(): Promise<boolean> {
+	if (!Platform.isDesktop) return false;
 	try {
-		await execFileAsync("gh", ["--version"], { timeout: GIT_TIMEOUT_MS });
+		const execFile = await getExecFileAsync();
+		await execFile("gh", ["--version"], { timeout: GIT_TIMEOUT_MS });
 		return true;
 	} catch {
 		return false;
@@ -699,10 +730,9 @@ export async function getGhAuthStatus(): Promise<GhAuthStatus> {
 		return { installed: false, loggedIn: false };
 	}
 	try {
-		const { stdout, stderr } = await execGhFile(
-			["auth", "status"],
-			process.cwd(),
-		);
+		const cwd =
+			typeof process !== "undefined" && process.cwd ? process.cwd() : ".";
+		const { stdout, stderr } = await execGhFile(["auth", "status"], cwd);
 		const combined = `${stdout}\n${stderr}`;
 		const match = combined.match(/Logged in to \S+ account (\S+)/);
 		return { installed: true, loggedIn: true, account: match?.[1] };
