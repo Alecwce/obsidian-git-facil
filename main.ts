@@ -325,7 +325,7 @@ export default class GitFacilPlugin extends Plugin {
 		}
 
 		if (leaf) {
-			workspace.revealLeaf(leaf);
+			await workspace.revealLeaf(leaf);
 			workspace.setActiveLeaf(leaf, { focus: true });
 			const rightSplit = workspace.rightSplit as {
 				expand?: () => void;

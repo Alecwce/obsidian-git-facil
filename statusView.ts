@@ -55,11 +55,13 @@ export class GitStatusView extends ItemView {
 		void (async () => {
 			if (!Platform.isDesktop) {
 				const status = await mobileGetStatus(this.app);
-				branchLine.setText(
-					status.ok
-						? `📍 ${status.branch} (Móvil)`
-						: "⚠️ Git móvil no inicializado",
-				);
+				if (!status.ok) {
+					branchLine.setText("⚠️ Git móvil no inicializado");
+				} else if (!status.hasRemote) {
+					branchLine.setText(`📍 ${status.branch} (sin remoto configurado)`);
+				} else {
+					branchLine.setText(`📍 ${status.branch} ☁️ origin`);
+				}
 			} else {
 				const bp = getVaultBasePath(this.app);
 				if (!bp) return;

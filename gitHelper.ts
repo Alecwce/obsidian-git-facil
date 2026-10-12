@@ -480,23 +480,39 @@ export async function setupRemoteAndFirstCommit(
 	}
 }
 
-export function isInternalGitFacilIgnored(filePath: string): boolean {
+export function isInternalGitFacilIgnored(
+	filePath: string,
+	configDir?: string,
+): boolean {
 	const p = filePath.replace(/\\/g, "/");
+	const cfg = configDir
+		? configDir.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "")
+		: "";
+	const isUnderConfig =
+		cfg.length > 0 &&
+		(p.startsWith(`${cfg}/plugins/`) ||
+			p.startsWith(`${cfg}/cache/`) ||
+			p.startsWith(`${cfg}/indexeddb/`) ||
+			p.startsWith(`${cfg}/file-recovery/`) ||
+			p.startsWith(`${cfg}/backups/`));
+
 	return (
 		p.startsWith(".trash/") ||
 		p === ".trash" ||
 		p.includes("workspace") ||
 		p === ".git" ||
 		p.startsWith(".git/") ||
-		p.startsWith(".obsidian/plugins/") ||
-		p.startsWith(".obsidian/cache/") ||
-		p.startsWith(".obsidian/indexeddb/") ||
-		p.startsWith(".obsidian/file-recovery/") ||
-		p.startsWith(".obsidian/backups/")
+		isUnderConfig ||
+		p.includes("/plugins/") ||
+		p.includes("/cache/") ||
+		p.includes("/file-recovery/")
 	);
 }
 
-export function parsePorcelainOutput(stdout: string): GitChangedFile[] {
+export function parsePorcelainOutput(
+	stdout: string,
+	configDir?: string,
+): GitChangedFile[] {
 	const lines = stdout.split("\n").filter((line) => line.trim().length > 0);
 	return lines
 		.map((line) => {
@@ -514,13 +530,16 @@ export function parsePorcelainOutput(stdout: string): GitChangedFile[] {
 
 			return { status, path: filePath };
 		})
-		.filter((f) => !isInternalGitFacilIgnored(f.path));
+		.filter((f) => !isInternalGitFacilIgnored(f.path, configDir));
 }
 
 // Formato -z: entradas separadas por NUL, a prueba de nombres con
 // espacios, comillas o saltos de línea. En renames el orden es
 // "to\0from": la primera ruta es la vigente.
-export function parsePorcelainZ(stdout: string): GitChangedFile[] {
+export function parsePorcelainZ(
+	stdout: string,
+	configDir?: string,
+): GitChangedFile[] {
 	const fields = stdout.split("\0");
 	const files: GitChangedFile[] = [];
 	for (let i = 0; i < fields.length; i++) {
@@ -535,7 +554,7 @@ export function parsePorcelainZ(stdout: string): GitChangedFile[] {
 		) {
 			i++;
 		}
-		if (!filePath || isInternalGitFacilIgnored(filePath)) continue;
+		if (!filePath || isInternalGitFacilIgnored(filePath, configDir)) continue;
 		files.push({ status, path: filePath });
 	}
 	return files;

@@ -5,6 +5,7 @@ import {
 	requestUrl,
 	type SettingDefinitionItem,
 } from "obsidian";
+import { CloneVaultModal } from "./cloneModal";
 import { t } from "./i18n";
 import type GitFacilPlugin from "./main";
 import { DEFAULT_SETTINGS } from "./main";
@@ -151,6 +152,13 @@ export class GitFacilSettingTab extends PluginSettingTab {
 							new Notice(`❌ Error de conexión al probar token: ${msg}`);
 						}
 					})();
+				},
+			},
+			{
+				name: "📥 Clonar o Conectar Bóveda desde GitHub",
+				desc: "Descarga o conecta un repositorio existente de GitHub en este dispositivo.",
+				action: () => {
+					new CloneVaultModal(this.app, this.plugin).open();
 				},
 			},
 			{
