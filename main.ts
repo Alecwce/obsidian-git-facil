@@ -396,17 +396,8 @@ export default class GitFacilPlugin extends Plugin {
 			const gitPath = this.settings.customGitPath;
 			const installed = await isGitInstalled(gitPath);
 			if (!installed) {
-				new Notice("Git nativo no detectado, usando motor independiente...");
-				const commitMessage = getCommitMessage(
-					this.settings.commitMessageTemplate,
-				);
-				const res = await mobileCommitAndPush(this.app, commitMessage, token);
-				new Notice(res.message);
-				if (res.success) {
-					this.updateStatusBar("idle");
-				} else {
-					this.updateStatusBar("error");
-				}
+				new Notice(t("errGitNotInstalled"));
+				this.updateStatusBar("error");
 				return;
 			}
 

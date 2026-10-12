@@ -18,9 +18,28 @@ async function getExecFileAsync(): Promise<ExecFileFn> {
 	if (cachedExecFile) return cachedExecFile;
 
 	try {
+		// En Electron / Obsidian desktop, usar window.require si está disponible
+		const electronRequire =
+			typeof window !== "undefined" &&
+			(window as unknown as { require?: (mod: string) => unknown }).require
+				? (window as unknown as { require: (mod: string) => unknown }).require
+				: null;
+
+		if (electronRequire) {
+			const cp = electronRequire(
+				"child_process",
+			) as typeof import("node:child_process");
+			const util = electronRequire("util") as typeof import("node:util");
+			cachedExecFile = util.promisify(cp.execFile);
+			return cachedExecFile;
+		}
+
+		// Fallback para Vitest / Node.js
 		const cp = await import("node:child_process");
 		const util = await import("node:util");
-		cachedExecFile = util.promisify(cp.execFile);
+		const promisify = util.promisify ?? util.default?.promisify;
+		const execFile = cp.execFile ?? cp.default?.execFile;
+		cachedExecFile = promisify(execFile);
 		return cachedExecFile;
 	} catch (error) {
 		const msg = error instanceof Error ? error.message : String(error);
