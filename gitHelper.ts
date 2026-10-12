@@ -1,4 +1,4 @@
-import { Platform } from "obsidian";
+import { Platform, requestUrl } from "obsidian";
 import { t } from "./i18n";
 
 type ExecFileFn = (
@@ -20,7 +20,7 @@ async function getExecFileAsync(): Promise<ExecFileFn> {
 	try {
 		const cp = await import("node:child_process");
 		const util = await import("node:util");
-		cachedExecFile = util.promisify(cp.execFile) as unknown as ExecFileFn;
+		cachedExecFile = util.promisify(cp.execFile);
 		return cachedExecFile;
 	} catch (error) {
 		const msg = error instanceof Error ? error.message : String(error);
@@ -283,17 +283,68 @@ export async function getGitIdentity(
 	};
 }
 
-// Comprueba URL + credenciales sin tocar la config: ls-remote directo.
+// Comprueba URL + credenciales sin tocar la config: ls-remote directo (desktop) o smart HTTP (mobile).
 export async function checkRemoteAuth(
 	remoteUrl: string,
 	gitPath?: string,
 	token?: string,
 ): Promise<{ ok: boolean; error?: string }> {
-	const git = resolveGit(gitPath);
 	const trimmed = remoteUrl.trim();
 	if (!isValidGitRemoteUrl(trimmed)) {
 		return { ok: false, error: t("wizardStep3ErrorInvalid") };
 	}
+
+	if (!Platform.isDesktop) {
+		try {
+			let endpoint = trimmed;
+			if (endpoint.startsWith("git@github.com:")) {
+				endpoint = endpoint.replace("git@github.com:", "https://github.com/");
+			}
+			if (!endpoint.endsWith(".git")) endpoint += ".git";
+			endpoint += "/info/refs?service=git-upload-pack";
+
+			const headers: Record<string, string> = {
+				"User-Agent": "obsidian-git-facil",
+			};
+			if (token && token.trim().length > 0) {
+				const clean = token.trim();
+				const basic =
+					typeof btoa === "function"
+						? btoa(`x-access-token:${clean}`)
+						: Buffer.from(`x-access-token:${clean}`).toString("base64");
+				headers.Authorization = `Basic ${basic}`;
+			}
+
+			const res = await requestUrl({
+				url: endpoint,
+				method: "GET",
+				headers,
+				throw: false,
+			});
+
+			if (res.status === 200) {
+				return { ok: true };
+			}
+			if (res.status === 401 || res.status === 403) {
+				return {
+					ok: false,
+					error: "Credenciales rechazadas por GitHub. Revisa tu Token PAT.",
+				};
+			}
+			if (res.status === 404) {
+				return {
+					ok: false,
+					error: "Repositorio no encontrado o privado sin permisos.",
+				};
+			}
+			return { ok: false, error: `Error HTTP ${res.status}` };
+		} catch (error) {
+			const msg = error instanceof Error ? error.message : String(error);
+			return { ok: false, error: msg };
+		}
+	}
+
+	const git = resolveGit(gitPath);
 	try {
 		await execGitFile(git, ["ls-remote", trimmed, "HEAD"], process.cwd(), {
 			remote: true,

@@ -86,19 +86,34 @@ export class CloneVaultModal extends Modal {
 
 		btnClone.addEventListener("click", () => {
 			void (async () => {
-				if (!this.repoUrl) {
+				let cleanUrl = this.repoUrl.trim();
+				if (!cleanUrl) {
 					new Notice("⚠️ Ingresa la URL del repositorio de GitHub.");
 					return;
 				}
+				if (cleanUrl.startsWith("git@github.com:")) {
+					cleanUrl = cleanUrl.replace("git@github.com:", "https://github.com/");
+				}
+				if (
+					!cleanUrl.startsWith("https://") &&
+					cleanUrl.includes("github.com/")
+				) {
+					cleanUrl = `https://${cleanUrl}`;
+				}
+				if (!cleanUrl.endsWith(".git")) {
+					cleanUrl += ".git";
+				}
+				const cleanToken = this.token.trim();
+
 				btnClone.disabled = true;
 				progressBox.setText("⏳ Conectando con GitHub y descargando notas...");
 				progressBox.className = "wizard-result";
 
 				const res = await cloneVault(
 					this.app,
-					this.repoUrl,
-					this.token,
-					this.branch,
+					cleanUrl,
+					cleanToken,
+					this.branch.trim() || "main",
 					(phase, loaded, total) => {
 						if (total > 0) {
 							progressBox.setText(`📥 ${phase}: ${loaded}/${total}`);

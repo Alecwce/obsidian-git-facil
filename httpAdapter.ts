@@ -38,7 +38,7 @@ export const obsidianHttpClient = {
 					combined.set(c, offset);
 					offset += c.length;
 				}
-				arrayBufferBody = combined.buffer as ArrayBuffer;
+				arrayBufferBody = combined.buffer;
 			}
 		}
 

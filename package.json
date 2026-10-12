@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-git-facil",
-	"version": "1.8.2",
+	"version": "1.8.3",
 	"description": "Plugin de Git sencillo para Obsidian",
 	"main": "main.js",
 	"scripts": {
@@ -25,6 +25,7 @@
 		"node": ">=24"
 	},
 	"dependencies": {
+		"buffer": "^6.0.3",
 		"isomorphic-git": "^1.43.3",
 		"tslib": "^2.6.2"
 	},

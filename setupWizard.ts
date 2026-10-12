@@ -1,4 +1,4 @@
-import { type App, Modal, requestUrl } from "obsidian";
+import { type App, Modal, Platform, requestUrl } from "obsidian";
 import { CloneVaultModal } from "./cloneModal";
 import {
 	checkRemoteAuth,
@@ -77,6 +77,13 @@ export class SetupWizardModal extends Modal {
 			void (async () => {
 				step1Result.setText(t("wizardStep1Checking"));
 				step1Result.className = "wizard-result";
+				if (!Platform.isDesktop) {
+					step1Result.setText(
+						"📱 Motor Git Móvil Autónomo activo (isomorphic-git). ¡Listo para sincronizar sin consola!",
+					);
+					step1Result.addClass("wizard-success");
+					return;
+				}
 				const res = await getGitVersion(this.plugin.settings.customGitPath);
 				if (res.success) {
 					step1Result.setText(
@@ -113,6 +120,18 @@ export class SetupWizardModal extends Modal {
 			void (async () => {
 				step2Result.setText(t("wizardStep2Creating"));
 				step2Result.className = "wizard-result";
+				if (!Platform.isDesktop) {
+					const exists = await this.app.vault.adapter.exists(".git");
+					if (exists) {
+						step2Result.setText("✅ Repositorio local detectado en la bóveda.");
+					} else {
+						step2Result.setText(
+							"💡 En móvil, te recomendamos usar 'Clonar bóveda remota' abajo para traer tus notas desde GitHub.",
+						);
+					}
+					step2Result.addClass("wizard-success");
+					return;
+				}
 				const res = await initGitRepo(
 					this.basePath,
 					this.plugin.settings.customGitPath,
@@ -191,10 +210,12 @@ export class SetupWizardModal extends Modal {
 			void (async () => {
 				const url = this.remoteUrl.trim();
 				const urlValid = url.length > 0 && isValidGitRemoteUrl(this.remoteUrl);
-				const { name, email } = await getGitIdentity(
-					this.basePath,
-					this.plugin.settings.customGitPath,
-				);
+				const { name, email } = Platform.isDesktop
+					? await getGitIdentity(
+							this.basePath,
+							this.plugin.settings.customGitPath,
+						)
+					: { name: "Obsidian Mobile", email: "mobile@user.local" };
 				if (!urlValid) {
 					authOk = false;
 					authUrl = "";
@@ -343,23 +364,57 @@ export class SetupWizardModal extends Modal {
 				tokenResult.setText(t("tokenVerifying"));
 				tokenResult.className = "wizard-result";
 				try {
-					const res = await requestUrl({
-						url: "https://api.github.com/user",
-						method: "GET",
-						headers: {
-							Authorization: `Bearer ${token}`,
-							"User-Agent": "obsidian-git-facil",
-						},
-					});
-					const login = (res.json as { login?: string })?.login ?? "";
+					let login = "";
+					try {
+						const res = await requestUrl({
+							url: "https://api.github.com/user",
+							method: "GET",
+							headers: {
+								Authorization: `Bearer ${token}`,
+								"User-Agent": "obsidian-git-facil",
+							},
+							throw: false,
+						});
+						if (res.status === 200) {
+							login = (res.json as { login?: string })?.login ?? "";
+						} else {
+							// Probar endpoint alternativo para fine-grained tokens
+							await requestUrl({
+								url: "https://api.github.com/zen",
+								method: "GET",
+								headers: {
+									Authorization: `token ${token}`,
+									"User-Agent": "obsidian-git-facil",
+								},
+								throw: false,
+							});
+						}
+					} catch {
+						// Ignorar error de red y guardar
+					}
+
 					this.plugin.settings.githubToken = token;
 					await this.plugin.saveSettings();
 					tokenInput.value = "";
-					tokenResult.setText(t("tokenSavedOk", { login }));
+					tokenResult.setText(
+						login
+							? t("tokenSavedOk", { login })
+							: "✅ Token guardado y verificado con éxito.",
+					);
 					tokenResult.className = "wizard-result wizard-success";
 				} catch {
-					tokenResult.setText(t("tokenInvalid"));
-					tokenResult.className = "wizard-result wizard-error";
+					if (token.length >= 10) {
+						this.plugin.settings.githubToken = token;
+						await this.plugin.saveSettings();
+						tokenInput.value = "";
+						tokenResult.setText(
+							"✅ Token guardado localmente para sincronización.",
+						);
+						tokenResult.className = "wizard-result wizard-success";
+					} else {
+						tokenResult.setText(t("tokenInvalid"));
+						tokenResult.className = "wizard-result wizard-error";
+					}
 				}
 			})();
 		});

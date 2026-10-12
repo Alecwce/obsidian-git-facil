@@ -14,6 +14,7 @@ esbuild
 			js: banner,
 		},
 		entryPoints: ["main.ts"],
+		inject: ["./polyfill.ts"],
 		bundle: true,
 		external: [
 			"obsidian",

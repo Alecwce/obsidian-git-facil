@@ -11,7 +11,18 @@ export interface MobileGitResult {
 function getAuthCallback(token?: string) {
 	return () => {
 		if (token && token.trim().length > 0) {
-			return { username: token.trim(), password: "" };
+			const clean = token.trim();
+			const basicValue =
+				typeof btoa === "function"
+					? btoa(`x-access-token:${clean}`)
+					: Buffer.from(`x-access-token:${clean}`).toString("base64");
+			return {
+				username: "x-access-token",
+				password: clean,
+				headers: {
+					Authorization: `Basic ${basicValue}`,
+				},
+			};
 		}
 		return undefined;
 	};

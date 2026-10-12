@@ -4,7 +4,6 @@ import {
 	PluginSettingTab,
 	type SettingDefinitionItem,
 } from "obsidian";
-import { checkRemoteAuth } from "./gitHelper";
 import { t } from "./i18n";
 import type GitFacilPlugin from "./main";
 import { DEFAULT_SETTINGS } from "./main";
@@ -103,17 +102,53 @@ export class GitFacilSettingTab extends PluginSettingTab {
 							return;
 						}
 						new Notice("🔍 Probando autenticación con GitHub...");
-						const res = await checkRemoteAuth(
-							"https://github.com/Alecwce/ryukami-labs-vault.git",
-							this.plugin.settings.customGitPath,
-							token,
-						);
-						if (res.ok) {
-							new Notice(t("noticeTestTokenSuccess"));
-						} else {
-							new Notice(
-								`${t("noticeTestTokenFail")}: ${res.error || "Token inválido"}`,
-							);
+						try {
+							const { requestUrl } = await import("obsidian");
+							const res = await requestUrl({
+								url: "https://api.github.com/user",
+								method: "GET",
+								headers: {
+									Authorization: `Bearer ${token}`,
+									"User-Agent": "obsidian-git-facil",
+								},
+								throw: false,
+							});
+							if (res.status === 200) {
+								const login = (res.json as { login?: string })?.login ?? "";
+								new Notice(
+									login
+										? `✅ Conexión con GitHub exitosa (Usuario: @${login})`
+										: t("noticeTestTokenSuccess"),
+								);
+								return;
+							}
+							if (res.status === 401) {
+								new Notice(
+									"❌ Token rechazado por GitHub: credenciales inválidas o expiradas.",
+								);
+								return;
+							}
+							// Para Fine-grained tokens sin permiso de usuario, probar con /zen
+							const zenRes = await requestUrl({
+								url: "https://api.github.com/zen",
+								method: "GET",
+								headers: {
+									Authorization: `token ${token}`,
+									"User-Agent": "obsidian-git-facil",
+								},
+								throw: false,
+							});
+							if (zenRes.status === 200) {
+								new Notice("✅ Token reconocido por GitHub exitosamente.");
+							} else {
+								new Notice(
+									`⚠️ GitHub respondió con código ${res.status}. Verifica que el token tenga permiso 'repo'.`,
+								);
+							}
+						} catch (error) {
+							const msg =
+								error instanceof Error ? error.message : String(error);
+							new Notice(`❌ Error de conexión al probar token: ${msg}`);
 						}
 					})();
 				},

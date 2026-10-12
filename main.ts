@@ -1,3 +1,4 @@
+import "./polyfill";
 import { Notice, Platform, Plugin, type WorkspaceLeaf } from "obsidian";
 import { CloneVaultModal } from "./cloneModal";
 import {
