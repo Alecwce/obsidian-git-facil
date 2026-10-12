@@ -1,6 +1,7 @@
 import git from "isomorphic-git";
 import type { App } from "obsidian";
 import { ObsidianIsomorphicFsAdapter } from "./fsAdapter";
+import { isInternalGitFacilIgnored } from "./gitHelper";
 import { obsidianHttpClient } from "./httpAdapter";
 
 export interface MobileGitResult {
@@ -108,12 +109,7 @@ export async function mobileCommitAndPush(
 
 		let changesCount = 0;
 		for (const [filepath, head, workdir, stage] of matrix) {
-			// Ignorar archivos dentro de .obsidian/workspace o .trash
-			if (
-				filepath.startsWith(".trash") ||
-				filepath.includes("workspace") ||
-				filepath === ".git"
-			) {
+			if (isInternalGitFacilIgnored(filepath)) {
 				continue;
 			}
 
@@ -212,11 +208,7 @@ export async function mobileGetPendingCount(app: App): Promise<number> {
 		const matrix = await git.statusMatrix({ fs, dir: "" });
 		let count = 0;
 		for (const [filepath, head, workdir, stage] of matrix) {
-			if (
-				filepath.startsWith(".trash") ||
-				filepath.includes("workspace") ||
-				filepath === ".git"
-			) {
+			if (isInternalGitFacilIgnored(filepath)) {
 				continue;
 			}
 			if (workdir !== stage || (head !== 0 && workdir === 0)) {
@@ -258,11 +250,7 @@ export async function mobileGetStatus(app: App): Promise<MobileStatusResult> {
 		const files: MobileFileStatus[] = [];
 
 		for (const [filepath, head, workdir, stage] of matrix) {
-			if (
-				filepath.startsWith(".trash") ||
-				filepath.includes("workspace") ||
-				filepath === ".git"
-			) {
+			if (isInternalGitFacilIgnored(filepath)) {
 				continue;
 			}
 
@@ -302,6 +290,7 @@ export async function mobileCommitAndPushSelectedFiles(
 	const fs = new ObsidianIsomorphicFsAdapter(app.vault.adapter);
 	try {
 		for (const filepath of files) {
+			if (isInternalGitFacilIgnored(filepath)) continue;
 			const exists = await app.vault.adapter.exists(filepath);
 			if (exists) {
 				await git.add({ fs, dir: "", filepath });

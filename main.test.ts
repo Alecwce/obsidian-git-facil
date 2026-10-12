@@ -279,6 +279,12 @@ describe("parsePorcelainOutput (Renames, Unicode & File Parsing)", () => {
 		]);
 		expect(parsePorcelainZ("")).toEqual([]);
 	});
+
+	it("debería filtrar y no listar archivos internos de plugins o workspace", () => {
+		const raw =
+			" M nota.md\0 M .obsidian/plugins/git-facil/main.js\0?? .obsidian/workspace.json\0?? .trash/viejo.md\0";
+		expect(parsePorcelainZ(raw)).toEqual([{ status: "M", path: "nota.md" }]);
+	});
 });
 
 describe("getCommitMessage", () => {

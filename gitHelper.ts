@@ -480,23 +480,41 @@ export async function setupRemoteAndFirstCommit(
 	}
 }
 
+export function isInternalGitFacilIgnored(filePath: string): boolean {
+	const p = filePath.replace(/\\/g, "/");
+	return (
+		p.startsWith(".trash/") ||
+		p === ".trash" ||
+		p.includes("workspace") ||
+		p === ".git" ||
+		p.startsWith(".git/") ||
+		p.startsWith(".obsidian/plugins/") ||
+		p.startsWith(".obsidian/cache/") ||
+		p.startsWith(".obsidian/indexeddb/") ||
+		p.startsWith(".obsidian/file-recovery/") ||
+		p.startsWith(".obsidian/backups/")
+	);
+}
+
 export function parsePorcelainOutput(stdout: string): GitChangedFile[] {
 	const lines = stdout.split("\n").filter((line) => line.trim().length > 0);
-	return lines.map((line) => {
-		const status = line.slice(0, 2).trim();
-		let filePath = line.slice(3).trim();
+	return lines
+		.map((line) => {
+			const status = line.slice(0, 2).trim();
+			let filePath = line.slice(3).trim();
 
-		if (filePath.includes(" -> ")) {
-			const parts = filePath.split(" -> ");
-			filePath = parts[parts.length - 1].trim();
-		}
+			if (filePath.includes(" -> ")) {
+				const parts = filePath.split(" -> ");
+				filePath = parts[parts.length - 1].trim();
+			}
 
-		if (filePath.startsWith('"') && filePath.endsWith('"')) {
-			filePath = filePath.slice(1, -1);
-		}
+			if (filePath.startsWith('"') && filePath.endsWith('"')) {
+				filePath = filePath.slice(1, -1);
+			}
 
-		return { status, path: filePath };
-	});
+			return { status, path: filePath };
+		})
+		.filter((f) => !isInternalGitFacilIgnored(f.path));
 }
 
 // Formato -z: entradas separadas por NUL, a prueba de nombres con
@@ -517,7 +535,7 @@ export function parsePorcelainZ(stdout: string): GitChangedFile[] {
 		) {
 			i++;
 		}
-		if (!filePath) continue;
+		if (!filePath || isInternalGitFacilIgnored(filePath)) continue;
 		files.push({ status, path: filePath });
 	}
 	return files;
