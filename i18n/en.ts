@@ -149,4 +149,6 @@ export const en: Record<TranslationKeys, string> = {
 		"⚠️ Synced with GitHub but could not restore your local changes: {msg}. Check with: git stash list.",
 	wizardStep3ErrorInvalid:
 		"❌ Invalid URL. Use https://github.com/user/repo(.git) or git@github.com:user/repo.git",
+	gitHelperInvalidCredentials:
+		"Invalid GitHub credentials. Please check your PAT token in plugin settings ('repo' scope required).",
 };

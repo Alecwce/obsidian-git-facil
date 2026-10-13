@@ -2,7 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 import {
 	checkRemoteAuth,
 	commitAndPushSelectedFiles,
+	formatGitErrorMessage,
 	getAheadBehind,
+	getBasicAuthHeaderValue,
 	getCommitMessage,
 	getCurrentBranch,
 	getGhAuthStatus,
@@ -699,11 +701,27 @@ describe("gh CLI y token manual", () => {
 		expect(res.success).toBe(true);
 		const push = mockCalls.find((c) => c.includes("push"));
 		expect(push).toBeDefined();
-		expect(push?.some((a) => a.includes("tok-secreto-1"))).toBe(true);
+		const expectedBasic = getBasicAuthHeaderValue("tok-secreto-1");
+		expect(push?.some((a) => a.includes(expectedBasic))).toBe(true);
+		expect(push?.some((a) => a.includes("AUTHORIZATION: Basic"))).toBe(true);
 		// El token no queda en add/commit ni en lecturas de estado
 		const others = mockCalls.filter((c) => !c.includes("push"));
-		expect(others.every((c) => !c.join(" ").includes("tok-secreto-1"))).toBe(
+		expect(others.every((c) => !c.join(" ").includes(expectedBasic))).toBe(
 			true,
 		);
+	});
+
+	it("debería codificar Basic Auth con x-access-token correctamente", () => {
+		const res = getBasicAuthHeaderValue("mi-token-xyz");
+		expect(res).toBe(btoa("x-access-token:mi-token-xyz"));
+	});
+
+	it("debería formatear errores de credenciales inválidas amigablemente", () => {
+		setLanguage("es");
+		const msg = formatGitErrorMessage("fatal: remote: invalid credentials");
+		expect(msg).toBe(t("gitHelperInvalidCredentials"));
+
+		const normalMsg = formatGitErrorMessage("fatal: repository not found");
+		expect(normalMsg).toBe("fatal: repository not found");
 	});
 });

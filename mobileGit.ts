@@ -1,7 +1,10 @@
 import git from "isomorphic-git";
 import type { App } from "obsidian";
 import { ObsidianIsomorphicFsAdapter } from "./fsAdapter";
-import { isInternalGitFacilIgnored } from "./gitHelper";
+import {
+	getBasicAuthHeaderValue,
+	isInternalGitFacilIgnored,
+} from "./gitHelper";
 import { obsidianHttpClient } from "./httpAdapter";
 
 export interface MobileGitResult {
@@ -13,10 +16,7 @@ function getAuthCallback(token?: string) {
 	return () => {
 		if (token && token.trim().length > 0) {
 			const clean = token.trim();
-			const basicValue =
-				typeof btoa === "function"
-					? btoa(`x-access-token:${clean}`)
-					: Buffer.from(`x-access-token:${clean}`).toString("base64");
+			const basicValue = getBasicAuthHeaderValue(clean);
 			return {
 				username: "x-access-token",
 				password: clean,

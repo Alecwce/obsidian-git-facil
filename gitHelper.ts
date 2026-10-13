@@ -68,15 +68,44 @@ export function redactSecrets(
 	return out;
 }
 
+export function getBasicAuthHeaderValue(token: string): string {
+	const clean = token.trim();
+	const creds = `x-access-token:${clean}`;
+	if (typeof btoa === "function") {
+		return btoa(creds);
+	}
+	if (typeof window !== "undefined" && typeof window.btoa === "function") {
+		return window.btoa(creds);
+	}
+	if (typeof Buffer !== "undefined") {
+		return Buffer.from(creds).toString("base64");
+	}
+	return "";
+}
+
 function withAuthHeader(args: string[], token?: string): string[] {
 	const trimmed = token?.trim();
 	if (!trimmed) return args;
-	return ["-c", `http.extraHeader=AUTHORIZATION: bearer ${trimmed}`, ...args];
+	const basic = getBasicAuthHeaderValue(trimmed);
+	if (!basic) return args;
+	return ["-c", `http.extraHeader=AUTHORIZATION: Basic ${basic}`, ...args];
 }
 
 interface ExecGitOpts {
 	remote?: boolean;
 	token?: string;
+}
+
+export function formatGitErrorMessage(rawError: string): string {
+	const lower = rawError.toLowerCase();
+	if (
+		lower.includes("invalid credentials") ||
+		lower.includes("autenticación falló") ||
+		lower.includes("authentication failed")
+	) {
+		return t("gitHelperInvalidCredentials");
+	}
+	return rawError;
 }
 
 // Punto único de ejecución git: timeout local/remoto + token sin persistir
@@ -97,7 +126,9 @@ async function execGitFile(
 		return { stdout, stderr: stderr ?? "" };
 	} catch (error) {
 		const msg = error instanceof Error ? error.message : String(error);
-		throw new Error(redactSecrets(msg, [opts.token]));
+		const basic = opts.token ? getBasicAuthHeaderValue(opts.token) : undefined;
+		const redacted = redactSecrets(msg, [opts.token, basic]);
+		throw new Error(formatGitErrorMessage(redacted));
 	}
 }
 
@@ -326,12 +357,10 @@ export async function checkRemoteAuth(
 				"User-Agent": "obsidian-git-facil",
 			};
 			if (token && token.trim().length > 0) {
-				const clean = token.trim();
-				const basic =
-					typeof btoa === "function"
-						? btoa(`x-access-token:${clean}`)
-						: Buffer.from(`x-access-token:${clean}`).toString("base64");
-				headers.Authorization = `Basic ${basic}`;
+				const basic = getBasicAuthHeaderValue(token);
+				if (basic) {
+					headers.Authorization = `Basic ${basic}`;
+				}
 			}
 
 			const res = await requestUrl({

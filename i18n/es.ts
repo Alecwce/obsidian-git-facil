@@ -153,6 +153,8 @@ export const es = {
 		"⚠️ Sincronizado con GitHub pero no se pudo restaurar tus cambios locales: {msg}. Revisa con: git stash list.",
 	wizardStep3ErrorInvalid:
 		"❌ URL inválida. Usa https://github.com/usuario/repo(.git) o git@github.com:usuario/repo.git",
+	gitHelperInvalidCredentials:
+		"Credenciales de GitHub no válidas. Revisa tu Token PAT en los ajustes del plugin (permiso 'repo').",
 };
 
 export type TranslationKeys = keyof typeof es;

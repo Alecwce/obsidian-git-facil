@@ -30,7 +30,9 @@ loadEnv();
 function getDestinationDir() {
 	// 1. Argumento por línea de comandos: node scripts/deploy.mjs <ruta>
 	if (process.argv[2]) {
-		return resolve(process.argv[2]);
+		const arg = resolve(process.argv[2]);
+		if (arg.includes(".obsidian")) return arg;
+		return resolve(join(arg, ".obsidian", "plugins", "git-facil"));
 	}
 
 	// 2. Variable de entorno explícita para la carpeta del plugin
