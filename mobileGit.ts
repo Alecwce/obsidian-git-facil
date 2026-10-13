@@ -238,6 +238,36 @@ export function refreshMobileFileTree(app: App): void {
 	}
 }
 
+export const smartMergeDriver = async ({
+	contents,
+	path,
+}: {
+	branches: string[];
+	contents: string[];
+	path: string;
+}): Promise<{ mergedText: string; cleanMerge: boolean }> => {
+	const [_base, _ours, theirs] = contents;
+	const normalized = path.replace(/\\/g, "/");
+
+	// 1. Archivos internos de Git y Obsidian: priorizar la versión remota consolidada
+	if (
+		normalized === ".gitignore" ||
+		normalized === ".stignore" ||
+		normalized.startsWith(".obsidian/") ||
+		normalized.startsWith(".obsidian\\")
+	) {
+		return { cleanMerge: true, mergedText: theirs };
+	}
+
+	// 2. Notas de usuario: fusionar preservando ambos contenidos si divergieron
+	if (_ours && theirs && _ours !== theirs) {
+		const combined = `${_ours.trim()}\n\n---\n<!-- 🔄 Sincronizado desde otro dispositivo -->\n${theirs.trim()}\n`;
+		return { cleanMerge: true, mergedText: combined };
+	}
+
+	return { cleanMerge: true, mergedText: theirs || _ours };
+};
+
 async function performMobilePull(
 	fs: ObsidianIsomorphicFsAdapter,
 	token?: string,
@@ -267,15 +297,33 @@ async function performMobilePull(
 		// Silencioso
 	}
 
-	await git.merge({
-		fs,
-		dir: "",
-		ours: current,
-		theirs: fetchHead,
-		fastForward: true,
-		author: { name: authorName, email: authorEmail },
-		committer: { name: authorName, email: authorEmail },
-	});
+	try {
+		await git.merge({
+			fs,
+			dir: "",
+			ours: current,
+			theirs: fetchHead,
+			fastForward: true,
+			mergeDriver: smartMergeDriver,
+			abortOnConflict: false,
+			author: { name: authorName, email: authorEmail },
+			committer: { name: authorName, email: authorEmail },
+		});
+	} catch {
+		// Fallback anti-pánico: si el merge de 3 vías encuentra conflicto irresoluble,
+		// alinear la rama local directamente con el remoto de GitHub
+		try {
+			await git.writeRef({
+				fs,
+				dir: "",
+				ref: `refs/heads/${current}`,
+				value: fetchHead,
+				force: true,
+			});
+		} catch {
+			// Silencioso
+		}
+	}
 
 	let afterOid: string | null = null;
 	try {
@@ -284,7 +332,7 @@ async function performMobilePull(
 		// Silencioso
 	}
 
-	// Forzar checkout para evitar CheckoutConflictError por configs locales (.obsidian/app.json, etc.)
+	// Forzar checkout para sobreescribir working tree limpiamente evitando conflictos
 	await git.checkout({
 		fs,
 		dir: "",
