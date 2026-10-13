@@ -137,19 +137,8 @@ export async function mobileCommitAndPush(
 		}
 
 		if (changesCount === 0) {
-			// Intentar pull para ver si hay cambios remotos
-			await git.pull({
-				fs,
-				http: obsidianHttpClient,
-				dir: "",
-				singleBranch: true,
-				author: { name: authorName, email: authorEmail },
-				onAuth: getAuthCallback(token),
-			});
-			return {
-				success: true,
-				message: "🟢 Al día: No hay cambios locales pendientes.",
-			};
+			// Si no hay cambios locales pendientes, bajar cambios de la nube
+			return await mobilePull(app, token, authorName, authorEmail);
 		}
 
 		await git.commit({
@@ -235,6 +224,77 @@ export async function mobileSetRemoteUrl(
 	}
 }
 
+export function refreshMobileFileTree(app: App): void {
+	try {
+		const leaves = app.workspace.getLeavesOfType("file-explorer");
+		for (const leaf of leaves) {
+			const view = leaf.view as unknown as { reload?: () => void };
+			if (typeof view.reload === "function") {
+				view.reload();
+			}
+		}
+	} catch {
+		// Silencioso si no está disponible la vista
+	}
+}
+
+async function performMobilePull(
+	fs: ObsidianIsomorphicFsAdapter,
+	token?: string,
+	authorName = "Obsidian User",
+	authorEmail = "obsidian@user.local",
+): Promise<{ pulled: boolean }> {
+	const current =
+		(await git.currentBranch({ fs, dir: "", fullname: false })) || "main";
+
+	const { fetchHead } = await git.fetch({
+		fs,
+		http: obsidianHttpClient,
+		dir: "",
+		ref: current,
+		singleBranch: true,
+		onAuth: getAuthCallback(token),
+	});
+
+	if (!fetchHead) {
+		return { pulled: false };
+	}
+
+	let beforeOid: string | null = null;
+	try {
+		beforeOid = await git.resolveRef({ fs, dir: "", ref: current });
+	} catch {
+		// Silencioso
+	}
+
+	await git.merge({
+		fs,
+		dir: "",
+		ours: current,
+		theirs: fetchHead,
+		fastForward: true,
+		author: { name: authorName, email: authorEmail },
+		committer: { name: authorName, email: authorEmail },
+	});
+
+	let afterOid: string | null = null;
+	try {
+		afterOid = await git.resolveRef({ fs, dir: "", ref: current });
+	} catch {
+		// Silencioso
+	}
+
+	// Forzar checkout para evitar CheckoutConflictError por configs locales (.obsidian/app.json, etc.)
+	await git.checkout({
+		fs,
+		dir: "",
+		ref: current,
+		force: true,
+	});
+
+	return { pulled: beforeOid !== afterOid };
+}
+
 export async function mobilePull(
 	app: App,
 	token?: string,
@@ -250,17 +310,22 @@ export async function mobilePull(
 					"⚠️ No hay repositorio remoto configurado en esta bóveda. Clona tu bóveda o configura la URL remota.",
 			};
 		}
-		await git.pull({
+		const { pulled } = await performMobilePull(
 			fs,
-			http: obsidianHttpClient,
-			dir: "",
-			singleBranch: true,
-			author: { name: authorName, email: authorEmail },
-			onAuth: getAuthCallback(token),
-		});
+			token,
+			authorName,
+			authorEmail,
+		);
+		refreshMobileFileTree(app);
+		if (pulled) {
+			return {
+				success: true,
+				message: "📥 Notas descargadas y actualizadas desde la nube.",
+			};
+		}
 		return {
 			success: true,
-			message: "📥 Notas descargadas y actualizadas desde la nube.",
+			message: "🟢 Tu bóveda ya está al día con la nube.",
 		};
 	} catch (error) {
 		const msg = error instanceof Error ? error.message : String(error);
