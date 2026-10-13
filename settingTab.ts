@@ -3,6 +3,7 @@ import {
 	Notice,
 	PluginSettingTab,
 	requestUrl,
+	type Setting,
 	type SettingDefinitionItem,
 } from "obsidian";
 import { CloneVaultModal } from "./cloneModal";
@@ -76,11 +77,33 @@ export class GitFacilSettingTab extends PluginSettingTab {
 			{
 				name: t("githubTokenName"),
 				desc: t("githubTokenDesc"),
-				control: {
-					type: "text",
-					key: "githubToken",
-					defaultValue: DEFAULT_SETTINGS.githubToken,
-					placeholder: t("githubTokenPlaceholder"),
+				render: (setting: Setting) => {
+					let isVisible = false;
+					let textInputEl: HTMLInputElement | null = null;
+					setting
+						.addText((text) => {
+							textInputEl = text.inputEl;
+							textInputEl.type = "password";
+							text
+								.setPlaceholder(t("githubTokenPlaceholder"))
+								.setValue(this.plugin.settings.githubToken ?? "")
+								.onChange(async (val) => {
+									this.plugin.settings.githubToken = val;
+									await this.plugin.saveSettings();
+								});
+						})
+						.addExtraButton((btn) => {
+							btn
+								.setIcon("eye")
+								.setTooltip(t("tokenVisibilityToggle"))
+								.onClick(() => {
+									isVisible = !isVisible;
+									if (textInputEl) {
+										textInputEl.type = isVisible ? "text" : "password";
+									}
+									btn.setIcon(isVisible ? "eye-off" : "eye");
+								});
+						});
 				},
 			},
 			{

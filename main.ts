@@ -3,10 +3,12 @@ import { Notice, Platform, Plugin, type WorkspaceLeaf } from "obsidian";
 import { CloneVaultModal } from "./cloneModal";
 import {
 	checkGitStatusPorcelain,
+	fullSyncVault,
 	getCommitMessage,
 	hasOriginRemote,
 	isGitInstalled,
 	isGitRepo,
+	isNetworkOrOfflineError,
 	isPushRejectedMessage,
 	runGit,
 	syncAndAlignWithRemote,
@@ -16,6 +18,7 @@ import { type Language, setLanguage, t } from "./i18n";
 import {
 	isMobileRepo,
 	mobileCommitAndPush,
+	mobileFullSync,
 	mobileGetPendingCount,
 	mobilePull,
 } from "./mobileGit";
@@ -75,6 +78,14 @@ export default class GitFacilPlugin extends Plugin {
 			id: "commit-and-push",
 			name: t("cmdCommitPush"),
 			callback: executeCommitAndPush,
+		});
+
+		this.addCommand({
+			id: "sync-full-vault",
+			name: t("cmdFullSync"),
+			callback: () => {
+				void this.handleFullSync();
+			},
 		});
 
 		this.addCommand({
@@ -449,6 +460,11 @@ export default class GitFacilPlugin extends Plugin {
 		} catch (error) {
 			this.updateStatusBar("error");
 			const message = error instanceof Error ? error.message : String(error);
+			if (isNetworkOrOfflineError(message)) {
+				this.updateStatusBar("idle");
+				new Notice(t("noticeOfflineSavedLocal"));
+				return;
+			}
 			if (isPushRejectedMessage(message)) {
 				const basePath = getVaultBasePath(this.app);
 				if (basePath) {
@@ -457,6 +473,74 @@ export default class GitFacilPlugin extends Plugin {
 				}
 			}
 			new Notice(t("noticeError", { msg: message }));
+		} finally {
+			this.isSyncing = false;
+			void this.refreshGitStatus();
+		}
+	}
+
+	async handleFullSync(): Promise<void> {
+		if (this.isSyncing) {
+			new Notice(t("noticeSyncBusy"));
+			return;
+		}
+		this.isSyncing = true;
+		this.updateStatusBar("syncing");
+		new Notice(t("noticeFullSyncRunning"));
+		try {
+			const token = this.settings.githubToken?.trim() || undefined;
+
+			if (!Platform.isDesktop) {
+				const commitMsg = getCommitMessage(this.settings.commitMessageTemplate);
+				const res = await mobileFullSync(this.app, commitMsg, token);
+				new Notice(res.message);
+				this.updateStatusBar(res.success ? "idle" : "error");
+				return;
+			}
+
+			const basePath = getVaultBasePath(this.app);
+			if (!basePath) {
+				new Notice(t("errVaultPath"));
+				return;
+			}
+
+			const gitPath = this.settings.customGitPath;
+			const installed = await isGitInstalled(gitPath);
+			if (!installed) {
+				new Notice(t("errGitNotInstalled"));
+				this.updateStatusBar("error");
+				return;
+			}
+
+			const inRepo = await isGitRepo(basePath, gitPath);
+			if (!inRepo) {
+				new Notice(t("errNotRepo"));
+				return;
+			}
+
+			const remoteExists = await hasOriginRemote(basePath, gitPath);
+			if (!remoteExists) {
+				new Notice(t("errNoRemote"));
+				return;
+			}
+
+			const res = await fullSyncVault(
+				basePath,
+				gitPath,
+				token,
+				this.settings.commitMessageTemplate,
+			);
+			new Notice(res.message);
+			this.updateStatusBar(res.success ? "idle" : "error");
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			if (isNetworkOrOfflineError(message)) {
+				this.updateStatusBar("idle");
+				new Notice(t("noticeOfflineSavedLocal"));
+				return;
+			}
+			new Notice(t("noticeError", { msg: message }));
+			this.updateStatusBar("error");
 		} finally {
 			this.isSyncing = false;
 			void this.refreshGitStatus();

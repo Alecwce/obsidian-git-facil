@@ -3,6 +3,7 @@ import {
 	checkRemoteAuth,
 	commitAndPushSelectedFiles,
 	formatGitErrorMessage,
+	fullSyncVault,
 	getAheadBehind,
 	getBasicAuthHeaderValue,
 	getCommitMessage,
@@ -18,6 +19,7 @@ import {
 	isGhInstalled,
 	isGitInstalled,
 	isGitRepo,
+	isNetworkOrOfflineError,
 	isPushRejectedMessage,
 	isValidGitRemoteUrl,
 	parseGitStatusPorcelain,
@@ -723,5 +725,62 @@ describe("gh CLI y token manual", () => {
 
 		const normalMsg = formatGitErrorMessage("fatal: repository not found");
 		expect(normalMsg).toBe("fatal: repository not found");
+	});
+
+	it("debería detectar errores comunes de falta de conexión o resolución DNS", () => {
+		expect(
+			isNetworkOrOfflineError(
+				"fatal: unable to access 'https://github.com/...': Could not resolve host: github.com",
+			),
+		).toBe(true);
+		expect(
+			isNetworkOrOfflineError(
+				"fatal: unable to access: Failed to connect to github.com port 443: Network is unreachable",
+			),
+		).toBe(true);
+		expect(
+			isNetworkOrOfflineError(
+				"FetchError: request to https://api.github.com/ failed, reason: getaddrinfo ENOTFOUND api.github.com",
+			),
+		).toBe(true);
+		expect(isNetworkOrOfflineError("TypeError: Failed to fetch")).toBe(true);
+		expect(isNetworkOrOfflineError("net::ERR_INTERNET_DISCONNECTED")).toBe(
+			true,
+		);
+		expect(isNetworkOrOfflineError("Connection timed out after 30000 ms")).toBe(
+			true,
+		);
+		expect(isNetworkOrOfflineError("read ECONNRESET")).toBe(true);
+	});
+
+	it("no debería marcar errores de credenciales o conflictos de git como errores de red", () => {
+		expect(isNetworkOrOfflineError("fatal: remote: Invalid credentials")).toBe(
+			false,
+		);
+		expect(
+			isNetworkOrOfflineError(
+				"error: failed to push some refs (non-fast-forward)",
+			),
+		).toBe(false);
+		expect(
+			isNetworkOrOfflineError("CONFLICT (content): Merge conflict in file.md"),
+		).toBe(false);
+	});
+
+	it("debería ejecutar fullSyncVault con add, commit, fetch, pull --rebase y push exitosamente", async () => {
+		mockCalls.length = 0;
+		mockCleanStatus = false;
+		const res = await fullSyncVault("/fake/path", undefined, "token-sync");
+		expect(res.success).toBe(true);
+		expect(res.message).toBe(t("noticeFullSyncSuccess"));
+
+		const commands = mockCalls.map((c) => c.join(" "));
+		expect(commands.some((c) => c.includes("add -A"))).toBe(true);
+		expect(commands.some((c) => c.includes("commit -m"))).toBe(true);
+		expect(commands.some((c) => c.includes("fetch origin"))).toBe(true);
+		expect(commands.some((c) => c.includes("pull --rebase origin main"))).toBe(
+			true,
+		);
+		expect(commands.some((c) => c.includes("push origin main"))).toBe(true);
 	});
 });

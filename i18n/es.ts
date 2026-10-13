@@ -37,6 +37,7 @@ export const es = {
 	ribbonCommitPush: "GitFacil",
 	ribbonGitStatus: "Estado de Git",
 	cmdCommitPush: "Commit y Push",
+	cmdFullSync: "🔄 Sincronizar Bóveda Completa (Bajar cambios y Subir)",
 	cmdGitStatus: "Abrir panel de Estado de Git",
 	cmdOpenSetupWizard: "Abrir asistente de configuración",
 
@@ -51,8 +52,16 @@ export const es = {
 	noticeNothingToPush: "Nada que subir ✅",
 	noticeCommitting: "Comitiendo...",
 	noticeCommitPushSuccess: "✅ Commit y push exitosos",
+	noticeFullSyncSuccess: "🎉 Bóveda completamente sincronizada con GitHub ✅",
+	noticeFullSyncRunning:
+		"🔄 Sincronizando bóveda completa (bajada y subida)...",
+	noticeOfflineSavedLocal:
+		"📶 Sin conexión a internet. Tus notas quedaron guardadas localmente y se subirán al conectarte.",
+	noticeOfflinePull:
+		"📶 Sin conexión a internet. No se pudieron descargar cambios de la nube.",
 	noticeSyncBusy: "⏳ Ya hay una sincronización en curso...",
 	noticeError: "❌ Error: {msg}",
+	tokenVisibilityToggle: "Mostrar / Ocultar token",
 
 	// Side Panel (GitStatusView)
 	statusPanelTitle: "📊 Estado de Git",

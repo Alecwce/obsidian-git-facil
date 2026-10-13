@@ -1,93 +1,101 @@
 # GitFacil - Obsidian Plugin
 
-**GitFacil** is an ultra-lightweight and simple Git backup plugin for Obsidian. / **GitFacil** es un plugin ultraliviano y sencillo para Obsidian que te permite respaldar y sincronizar tus notas con Git en un solo clic, sin complicaciones ni configuraciones complejas.
+[![Obsidian Community Plugin](https://img.shields.io/badge/Obsidian-Community%20Plugin-7C3AED?logo=obsidian)](https://community.obsidian.md/plugins/git-facil)
+[![Release](https://img.shields.io/github/v/release/Alecwce/obsidian-git-facil?color=success&label=version)](https://github.com/Alecwce/obsidian-git-facil/releases)
+[![Mobile Support](https://img.shields.io/badge/Mobile-Android%20%7C%20iOS%20(Zero%20Termux)-brightgreen)](#-arquitectura-de-motor-dual--dual-engine)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-📖 **Manual completo / Full manual:** [MANUAL.md](MANUAL.md).
+**GitFacil** es el plugin oficial de Obsidian para respaldar y sincronizar tus notas con GitHub en **1 solo clic**, sin comandos complejos ni terminales. Diseñado para usuarios de todo tipo: desde principiantes que no saben programar hasta usuarios avanzados que buscan sincronización instantánea y confiable.
+
+> **GitFacil** is an ultra-lightweight and simple Git backup plugin for Obsidian. One-click backup and bi-directional sync to GitHub with zero terminal fuss, on desktop and mobile.
+
+📦 **Disponible en la tienda oficial de Obsidian:** [community.obsidian.md/plugins/git-facil](https://community.obsidian.md/plugins/git-facil)  
+📖 **Manual completo y detallado / Full manual:** [MANUAL.md](MANUAL.md).
+
+---
 
 ![Git status panel](docs/panel-commit.gif)
 
-## Why GitFacil? / ¿Por qué GitFacil?
+---
 
-| Feature / Característica | GitFacil | Standard Git CLI |
+## 🌟 Características Principales / Key Features
+
+| Característica / Feature | GitFacil | Plugin de Git Convencional |
 | -------------------------------- | :---: | :---: |
-| One-click backup & push / Respaldo en 1 clic | ✅ | ❌ |
-| Setup wizard, no terminal needed / Asistente sin consola | ✅ | ❌ |
-| Status panel with file selection / Panel con selección | ✅ | ❌ |
-| Auto backup every N minutes / Respaldo programado | ✅ | ❌ |
-| Interactive status bar / Barra de estado en vivo | ✅ | ❌ |
-| 📥 1-Click Vault Clone / Clonar bóveda en 1 clic | ✅ | ❌ |
-| 📱 Full Mobile Support (Android/iOS) without Termux | ✅ | ❌ |
-| Anti-panic conflict recovery / Recuperación anti-pánico | ✅ | ❌ |
-
-**Dual Engine Architecture / Arquitectura de Motor Dual:**
-- **Desktop (Windows/Mac/Linux):** Native Git CLI for maximum speed and repository support.
-- **Mobile (Android/iOS) & Standalone:** Pure JavaScript `isomorphic-git` engine with Obsidian native `requestUrl` and `vault.adapter` — zero external terminal or Termux required!
+| 🚀 **Respaldo en 1 clic (Commit & Push)** | ✅ | ⚠️ Complejo |
+| 🔄 **Sincronización Completa (Pull + Push)** | ✅ | ❌ Múltiples comandos |
+| 📱 **Móvil nativo (Android/iOS) sin Termux** | ✅ | ❌ Requiere Termux / CLI |
+| 📶 **Detección offline inteligente (cero pánico)** | ✅ | ❌ Errores rojos alarmantes |
+| 📥 **Clonar bóveda en 1 clic desde la app** | ✅ | ❌ Requiere clonar por terminal |
+| 👁️ **Token GitHub seguro y enmascarado** | ✅ | ❌ Texto plano |
+| 🪄 **Asistente paso a paso sin consola** | ✅ | ❌ Solo consola |
+| 📊 **Panel lateral con checkboxes y Pull** | ✅ | ⚠️ Poco intuitivo |
+| ⏳ **Respaldo programado (Auto-sync)** | ✅ | ✅ |
 
 ---
 
-## 📋 Prerequisites / Requisitos
+## ⚙️ Arquitectura de Motor Dual / Dual Engine
 
-1. **Git installed / Tener Git instalado:** Download from [git-scm.com](https://git-scm.com).
-2. **Git repository initialized / Repositorio inicializado:** Run `git init` in your vault root folder.
-3. **Remote repository configured / Repositorio remoto:** Connect your vault to GitHub with `git remote add origin` using your repository URL — or skip the terminal entirely with the Setup Wizard below.
+GitFacil adapta inteligentemente su motor al dispositivo que estés usando:
 
----
+- **🖥️ En Escritorio (Windows / macOS / Linux):** Utiliza el ejecutable de Git nativo del sistema para máxima velocidad, compatibilidad con repositorios grandes y soporte para extensiones Git.
+- **📱 En Móvil (Android / iOS):** Motor puro en JavaScript (`isomorphic-git`) optimizado con el adaptador de archivos de Obsidian (`vault.adapter`) y peticiones HTTP seguras (`requestUrl`). **¡Cero Termux, cero Node.js externo y cero configuraciones complejas!**
 
-## Installation / Instalación
+## 📥 Instalación y Uso / Installation & Usage
 
-### Option 1: Community Plugin Directory (Recommended)
-1. Open Obsidian **Settings** -> **Community plugins**.
-2. Search for **GitFacil** and click **Install**.
-3. Enable the plugin.
+### 🚀 Inicio Rápido en 3 Minutos / 3-Minute Quickstart
 
-### Option 2: Via BRAT (Beta Tester)
-1. Install **Obsidian BRAT** from community plugins.
-2. Open BRAT settings -> **Add Beta plugin**.
-3. Enter `https://github.com/Alecwce/obsidian-git-facil`.
-4. Click **Add Plugin** and enable **GitFacil**.
+### 1️⃣ Instala GitFacil
+- Abre Obsidian -> **Ajustes (Settings)** -> **Community plugins**.
+- Busca **GitFacil** y haz clic en **Instalar** y luego en **Activar**.
 
-### Option 3: Manual Installation
-1. Download `main.js`, `manifest.json`, and `styles.css` from [Releases](https://github.com/Alecwce/obsidian-git-facil/releases).
-2. Inside your vault folder, create the folder `.obsidian/plugins/git-facil/`.
-3. Copy the downloaded files into that folder and reload plugins.
+### 2️⃣ Genera tu Token de GitHub
+- Ve a **Ajustes** -> **GitFacil**.
+- Haz clic en **🔑 Generar Token en GitHub (1 Clic)** o entra directo a [GitHub New Token (repo scope)](https://github.com/settings/tokens/new?description=Obsidian+GitFacil&scopes=repo).
+- Genera el token con permiso `repo`, cópialo y pégalo en la casilla de Token de GitFacil.
+- Haz clic en **🧪 Probar Conexión** para confirmar que tu usuario de GitHub está conectado (`@tu-usuario`).
 
----
-
-## Usage / Modo de Uso
-
-> ⚡ Pulsa **`Ctrl+P`** (o `Cmd+P`), escribe **GitFacil** y verás todo: commit, panel y asistente.
-
-- **🚀 One-click Ribbon Icon:** Click the rocket icon 🚀 in the left ribbon to commit and push changes immediately.
-- **📊 Git Status Side Panel:** Open the side panel (icon `git-compare`) to view modified files, select checkboxes, pull changes, or commit selected files.
-- **🪄 Setup Wizard:** Click `🪄 Configurar mi bóveda` in plugin settings for a 3-step zero-terminal guided setup.
-- **🔄 Auto-sync:** Enable Auto-sync in settings to backup your vault automatically every N minutes.
-- **Command Palette:** Search `GitFacil: Commit y Push` using `Ctrl+P` / `Cmd+P`.
+### 3️⃣ ¡Listo! Sincroniza tus Notas
+- **Desde el icono del cohete 🚀 en la barra lateral:** Pulsa para guardar y subir tus cambios inmediatamente.
+- **Desde la paleta de comandos (`Ctrl+P` / `Cmd+P`):**
+  - `🔄 GitFacil: Sincronizar Bóveda Completa (Bajar cambios y Subir)`
+  - `🚀 GitFacil: Commit y Push`
+  - `📊 GitFacil: Abrir panel de Estado de Git`
+  - `📥 GitFacil: Clonar Bóveda desde GitHub`
 
 ---
 
-## Settings / Ajustes
+## 📶 Modo Offline Inteligente / Smart Offline Mode
 
-- **Commit Message Template / Plantilla:** Custom message template; the plugin automatically inserts the current date and time (a default message looks like: 📝 notas 2026-08-04 17:45).
-- **Auto-sync Toggle & Interval:** Enable automatic background backups every N minutes.
-
----
-
-## Network use / Uso de red
-
-GitFacil runs `git` (and optionally your own `gh` CLI) locally. It calls `api.github.com` **only** when you verify a manual token in the setup wizard, and `gh` talks to GitHub only when you create a repository from the wizard. There is no telemetry and no GitFacil server.
+¿Te quedaste sin internet en el metro, avión o zona sin cobertura?  
+- **Sin alarmas:** GitFacil detecta automáticamente la falta de conexión (`isNetworkOrOfflineError`).
+- **Tus notas están a salvo:** Registra tu commit localmente en el historial de Git y te notifica amigablemente:  
+  *«📶 Sin conexión a internet. Tus notas quedaron guardadas localmente y se subirán al conectarte.»*
+- En cuanto recuperes conexión, pulsa el cohete 🚀 o deja que el **Auto-sync** suba tus notas automáticamente.
 
 ---
 
-## Troubleshooting / Solución de Problemas
+## 📥 Clonar Bóveda en un Dispositivo Nuevo / Clone on New Device
 
-| Error Notice | Cause / Causa | Solution / Solución |
-| :--- | :--- | :--- |
-| `❌ No se encontró Git` | Git not found in PATH | Install Git from [git-scm.com](https://git-scm.com) |
-| `❌ Tu bóveda no es un repositorio Git` | Vault not initialized | Run `git init` or use Setup Wizard |
-| `❌ No hay remote` | No remote repository | Connect it with the Setup Wizard or run `git remote add origin` with your repository URL |
+¿Acabas de instalar Obsidian en tu celular o en otra computadora y quieres descargar todas tus notas?
+1. Abre Obsidian y crea una bóveda vacía.
+2. Instala y activa **GitFacil**.
+3. Abre la paleta de comandos (`Ctrl+P`) y selecciona **📥 Clonar Bóveda desde GitHub**.
+4. Pega la URL de tu repositorio (`https://github.com/usuario/mi-boveda.git`) y tu token.
+5. Haz clic en **Clonar Bóveda**. ¡GitFacil descargará todas tus notas, carpetas y configuraciones al instante!
 
 ---
 
-## License
+## 🔒 Privacidad y Seguridad de Red / Privacy & Security
 
-[MIT License](LICENSE) - Created by Alex Lazo.
+- GitFacil opera **100% de forma local y directa** con tus repositorios de GitHub.
+- **Sin intermediarios:** No existe ningún servidor, analítica ni telemetría de GitFacil.
+- El token personal se utiliza exclusivamente para autenticarte frente a la API oficial de GitHub (`api.github.com`) y en los endpoints HTTPS de tu propio repositorio.
+- El token se mantiene enmascarado en la interfaz de ajustes con botón de visibilidad (`eye` / `eye-off`).
+
+---
+
+## 📄 Licencia / License
+
+Distribuido bajo la Licencia **MIT**. Consulta [LICENSE](LICENSE) para más detalles.  
+Creado con ❤️ por [Alex Lazo (Alecwce)](https://github.com/Alecwce).

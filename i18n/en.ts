@@ -37,6 +37,7 @@ export const en: Record<TranslationKeys, string> = {
 	ribbonCommitPush: "GitFacil",
 	ribbonGitStatus: "Git Status",
 	cmdCommitPush: "Commit and Push",
+	cmdFullSync: "🔄 Full Vault Sync (Pull and Push)",
 	cmdGitStatus: "Open Git Status panel",
 	cmdOpenSetupWizard: "Open setup wizard",
 
@@ -50,8 +51,15 @@ export const en: Record<TranslationKeys, string> = {
 	noticeNothingToPush: "Nothing to push ✅",
 	noticeCommitting: "Committing...",
 	noticeCommitPushSuccess: "✅ Commit and push successful",
+	noticeFullSyncSuccess: "🎉 Vault completely synced with GitHub ✅",
+	noticeFullSyncRunning: "🔄 Running full vault sync (pull and push)...",
+	noticeOfflineSavedLocal:
+		"📶 No internet connection. Your notes were saved locally and will sync once connected.",
+	noticeOfflinePull:
+		"📶 No internet connection. Could not download changes from cloud.",
 	noticeSyncBusy: "⏳ A sync is already in progress...",
 	noticeError: "❌ Error: {msg}",
+	tokenVisibilityToggle: "Show / Hide token",
 
 	// Side Panel (GitStatusView)
 	statusPanelTitle: "📊 Git Status",

@@ -4,8 +4,10 @@ import { ObsidianIsomorphicFsAdapter } from "./fsAdapter";
 import {
 	getBasicAuthHeaderValue,
 	isInternalGitFacilIgnored,
+	isNetworkOrOfflineError,
 } from "./gitHelper";
 import { obsidianHttpClient } from "./httpAdapter";
+import { t } from "./i18n";
 
 export interface MobileGitResult {
 	success: boolean;
@@ -161,6 +163,12 @@ export async function mobileCommitAndPush(
 		};
 	} catch (error) {
 		const msg = error instanceof Error ? error.message : String(error);
+		if (isNetworkOrOfflineError(msg)) {
+			return {
+				success: true,
+				message: t("noticeOfflineSavedLocal"),
+			};
+		}
 		return {
 			success: false,
 			message: `❌ Error de sincronización móvil: ${msg}`,
@@ -377,9 +385,106 @@ export async function mobilePull(
 		};
 	} catch (error) {
 		const msg = error instanceof Error ? error.message : String(error);
+		if (isNetworkOrOfflineError(msg)) {
+			return {
+				success: false,
+				message: t("noticeOfflinePull"),
+			};
+		}
 		return {
 			success: false,
 			message: `❌ Error al descargar cambios: ${msg}`,
+		};
+	}
+}
+
+export async function mobileFullSync(
+	app: App,
+	commitMessage: string,
+	token?: string,
+	authorName = "Obsidian User",
+	authorEmail = "obsidian@user.local",
+): Promise<MobileGitResult> {
+	const fs = new ObsidianIsomorphicFsAdapter(app.vault.adapter);
+	try {
+		if (!(await mobileHasRemote(app))) {
+			return {
+				success: false,
+				message:
+					"⚠️ No hay repositorio remoto configurado en esta bóveda. Clona tu bóveda o configura la URL remota.",
+			};
+		}
+
+		// 1. Descargar y combinar cambios remotos primero (pull)
+		try {
+			await performMobilePull(fs, token, authorName, authorEmail);
+		} catch (pullErr) {
+			const pMsg = pullErr instanceof Error ? pullErr.message : String(pullErr);
+			if (isNetworkOrOfflineError(pMsg)) {
+				return {
+					success: false,
+					message: t("noticeOfflinePull"),
+				};
+			}
+		}
+
+		// 2. Comprobar cambios locales, staging y commit
+		const matrix = await git.statusMatrix({ fs, dir: "" });
+		let changesCount = 0;
+		const cfgDir = app.vault.configDir;
+		for (const [filepath, head, workdir, stage] of matrix) {
+			if (isInternalGitFacilIgnored(filepath, cfgDir)) {
+				continue;
+			}
+			if (workdir !== stage || (head !== 0 && workdir === 0)) {
+				if (workdir === 0) {
+					await git.remove({ fs, dir: "", filepath });
+					changesCount++;
+				} else {
+					await git.add({ fs, dir: "", filepath });
+					changesCount++;
+				}
+			}
+		}
+
+		if (changesCount > 0) {
+			await git.commit({
+				fs,
+				dir: "",
+				message: commitMessage,
+				author: { name: authorName, email: authorEmail },
+			});
+		}
+
+		// 3. Subir todos los commits locales a la nube
+		try {
+			await git.push({
+				fs,
+				http: obsidianHttpClient,
+				dir: "",
+				onAuth: getAuthCallback(token),
+			});
+		} catch (pushErr) {
+			const pMsg = pushErr instanceof Error ? pushErr.message : String(pushErr);
+			if (isNetworkOrOfflineError(pMsg)) {
+				return {
+					success: true,
+					message: t("noticeOfflineSavedLocal"),
+				};
+			}
+			throw pushErr;
+		}
+
+		refreshMobileFileTree(app);
+		return {
+			success: true,
+			message: t("noticeFullSyncSuccess"),
+		};
+	} catch (error) {
+		const msg = error instanceof Error ? error.message : String(error);
+		return {
+			success: false,
+			message: `❌ Error en sincronización completa: ${msg}`,
 		};
 	}
 }

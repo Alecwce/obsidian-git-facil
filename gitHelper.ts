@@ -143,6 +143,31 @@ export function isPushRejectedMessage(msg: string): boolean {
 	);
 }
 
+export function isNetworkOrOfflineError(msg: string): boolean {
+	const m = msg.toLowerCase();
+	return (
+		m.includes("could not resolve host") ||
+		m.includes("failed to connect") ||
+		m.includes("network is unreachable") ||
+		m.includes("enotfound") ||
+		m.includes("err_internet_disconnected") ||
+		m.includes("failed to fetch") ||
+		m.includes("connection timed out") ||
+		m.includes("timed out") ||
+		m.includes("temporary failure in name resolution") ||
+		m.includes("getaddrinfo") ||
+		m.includes("socket hang up") ||
+		m.includes("econnrefused") ||
+		m.includes("econnreset") ||
+		m.includes("ehostunreach") ||
+		(m.includes("unable to access") &&
+			(m.includes("could not resolve") ||
+				m.includes("failed to connect") ||
+				m.includes("timed out") ||
+				m.includes("network")))
+	);
+}
+
 const GIT_REMOTE_URL_RE =
 	/^(https:\/\/[A-Za-z0-9.-]+\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(\.git)?\/?|git@[A-Za-z0-9.-]+:[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(\.git)?)$/;
 
@@ -720,9 +745,78 @@ export async function pullGitChanges(
 		return { success: true, message: t("pullChangesDownloaded") };
 	} catch (error) {
 		const msg = error instanceof Error ? error.message : String(error);
+		if (isNetworkOrOfflineError(msg)) {
+			return {
+				success: false,
+				message: t("noticeOfflinePull"),
+			};
+		}
 		return {
 			success: false,
 			message: t("gitHelperPullError", { msg }),
+		};
+	}
+}
+
+export async function fullSyncVault(
+	cwd: string,
+	gitPath?: string,
+	token?: string,
+	commitTemplate = "📝 notas {fecha}",
+): Promise<{ success: boolean; message: string }> {
+	const git = resolveGit(gitPath);
+	try {
+		const branch = await getCurrentBranch(cwd, gitPath);
+		const dirty = await hasUncommittedChanges(cwd, gitPath);
+
+		// 1. Si hay notas editadas o creadas localmente, guardarlas en commit primero
+		if (dirty) {
+			await execGitFile(git, ["add", "-A"], cwd);
+			const msg = getCommitMessage(commitTemplate);
+			await execGitFile(git, ["commit", "-m", msg], cwd);
+		}
+
+		// 2. Fetch y rebase de origin para incorporar cambios de otros dispositivos
+		await execGitFile(git, ["fetch", "origin"], cwd, {
+			remote: true,
+			token,
+		});
+
+		try {
+			await execGitFile(git, ["pull", "--rebase", "origin", branch], cwd, {
+				remote: true,
+				token,
+			});
+		} catch (pullError) {
+			try {
+				await execGitFile(git, ["rebase", "--abort"], cwd);
+			} catch {
+				// Ignorar error al abortar rebase
+			}
+			throw pullError;
+		}
+
+		// 3. Subir todos los commits locales actualizados
+		await execGitFile(git, ["push", "origin", branch], cwd, {
+			remote: true,
+			token,
+		});
+
+		return {
+			success: true,
+			message: t("noticeFullSyncSuccess"),
+		};
+	} catch (error) {
+		const msg = error instanceof Error ? error.message : String(error);
+		if (isNetworkOrOfflineError(msg)) {
+			return {
+				success: true,
+				message: t("noticeOfflineSavedLocal"),
+			};
+		}
+		return {
+			success: false,
+			message: t("gitHelperSyncError", { msg }),
 		};
 	}
 }
