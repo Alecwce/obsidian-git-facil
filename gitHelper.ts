@@ -1027,3 +1027,52 @@ export async function setupGhRepoAndFirstCommit(
 		};
 	}
 }
+
+export interface RecentCommit {
+	hash: string;
+	message: string;
+	relativeTime: string;
+}
+
+export function parseRecentCommits(stdout: string): RecentCommit[] {
+	if (!stdout?.trim()) return [];
+	const lines = stdout.split("\n");
+	const commits: RecentCommit[] = [];
+	for (const line of lines) {
+		const trimmed = line.trim();
+		if (!trimmed) continue;
+		const parts = trimmed.split("\x1f");
+		if (parts.length >= 2) {
+			commits.push({
+				hash: parts[0]?.trim() || "",
+				message: parts[1]?.trim() || "",
+				relativeTime: parts[2]?.trim() || "",
+			});
+		} else if (parts[0]) {
+			commits.push({
+				hash: parts[0].slice(0, 7),
+				message: parts[0].slice(7).trim(),
+				relativeTime: "",
+			});
+		}
+	}
+	return commits;
+}
+
+export async function getRecentCommits(
+	cwd: string,
+	gitPath?: string,
+	count = 5,
+): Promise<RecentCommit[]> {
+	const git = resolveGit(gitPath);
+	try {
+		const { stdout } = await execGitFile(
+			git,
+			["log", `-n${Math.max(1, count)}`, "--pretty=format:%h\x1f%s\x1f%cr"],
+			cwd,
+		);
+		return parseRecentCommits(stdout);
+	} catch {
+		return [];
+	}
+}

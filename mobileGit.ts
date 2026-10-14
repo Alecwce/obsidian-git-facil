@@ -5,6 +5,7 @@ import {
 	getBasicAuthHeaderValue,
 	isInternalGitFacilIgnored,
 	isNetworkOrOfflineError,
+	type RecentCommit,
 } from "./gitHelper";
 import { obsidianHttpClient } from "./httpAdapter";
 import { t } from "./i18n";
@@ -632,5 +633,49 @@ export async function mobileCommitAndPushSelectedFiles(
 			success: false,
 			message: `❌ Error al subir cambios: ${msg}`,
 		};
+	}
+}
+
+export function formatRelativeTime(timestampSeconds: number): string {
+	const now = Math.floor(Date.now() / 1000);
+	const diff = Math.max(0, now - timestampSeconds);
+	if (diff < 60) return "hace unos segundos";
+	const minutes = Math.floor(diff / 60);
+	if (minutes < 60) return `hace ${minutes} min`;
+	const hours = Math.floor(minutes / 60);
+	if (hours < 24) return `hace ${hours} h`;
+	const days = Math.floor(hours / 24);
+	if (days < 30) return `hace ${days} d`;
+	const months = Math.floor(days / 30);
+	if (months < 12) return `hace ${months} m`;
+	return `hace ${Math.floor(days / 365)} a`;
+}
+
+export async function mobileGetRecentCommits(
+	app: App,
+	count = 5,
+): Promise<RecentCommit[]> {
+	const fs = new ObsidianIsomorphicFsAdapter(app.vault.adapter);
+	try {
+		if (!(await isMobileRepo(app))) return [];
+		const logEntries = await git.log({
+			fs,
+			dir: "",
+			depth: Math.max(1, count),
+		});
+
+		return logEntries.map((entry) => {
+			const hash = entry.oid ? entry.oid.slice(0, 7) : "";
+			const rawMsg = entry.commit?.message || "";
+			const message = rawMsg.split("\n")[0]?.trim() || "";
+			const timestamp =
+				entry.commit?.committer?.timestamp ||
+				entry.commit?.author?.timestamp ||
+				0;
+			const relativeTime = timestamp > 0 ? formatRelativeTime(timestamp) : "";
+			return { hash, message, relativeTime };
+		});
+	} catch {
+		return [];
 	}
 }

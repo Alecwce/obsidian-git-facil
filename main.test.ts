@@ -12,6 +12,7 @@ import {
 	getGitIdentity,
 	getGitStatusResult,
 	getGitVersion,
+	getRecentCommits,
 	hasOriginRemote,
 	hasStagedChanges,
 	hasUncommittedChanges,
@@ -25,6 +26,7 @@ import {
 	parseGitStatusPorcelain,
 	parsePorcelainOutput,
 	parsePorcelainZ,
+	parseRecentCommits,
 	pullGitChanges,
 	redactSecrets,
 	resolveGit,
@@ -37,6 +39,7 @@ import {
 import { en } from "./i18n/en";
 import { es } from "./i18n/es";
 import { setLanguage, t } from "./i18n/index";
+import { formatRelativeTime } from "./mobileGit";
 
 let mockFailRebase = false;
 let mockCleanStatus = false;
@@ -185,6 +188,13 @@ vi.mock("node:child_process", () => ({
 				return;
 			}
 			cb(null, { stdout: "Already up to date." });
+			return;
+		}
+		if (args[0] === "log") {
+			cb(null, {
+				stdout:
+					"46fad05\x1ffirst commit\x1fhace 1 hora\n29698ad\x1fsecond commit\x1fhace 2 horas\n",
+			});
 			return;
 		}
 		cb(null, { stdout: "" });
@@ -782,5 +792,49 @@ describe("gh CLI y token manual", () => {
 			true,
 		);
 		expect(commands.some((c) => c.includes("push origin main"))).toBe(true);
+	});
+});
+
+describe("Historial de Commits Recientes", () => {
+	it("parseRecentCommits debería parsear correctamente el formato delimitado", () => {
+		const raw =
+			"46fad05\x1ffsync al reanudar app\x1fhace 10 minutos\n29698ad\x1fskills de git movil\x1fhace 1 hora\n";
+		const commits = parseRecentCommits(raw);
+		expect(commits).toHaveLength(2);
+		expect(commits[0]).toEqual({
+			hash: "46fad05",
+			message: "fsync al reanudar app",
+			relativeTime: "hace 10 minutos",
+		});
+		expect(commits[1]).toEqual({
+			hash: "29698ad",
+			message: "skills de git movil",
+			relativeTime: "hace 1 hora",
+		});
+	});
+
+	it("parseRecentCommits debería manejar stdout vacío sin lanzar error", () => {
+		expect(parseRecentCommits("")).toEqual([]);
+		expect(parseRecentCommits("   \n\n  ")).toEqual([]);
+	});
+
+	it("formatRelativeTime debería calcular intervalos legibles en español", () => {
+		const nowSeconds = Math.floor(Date.now() / 1000);
+		expect(formatRelativeTime(nowSeconds - 10)).toBe("hace unos segundos");
+		expect(formatRelativeTime(nowSeconds - 120)).toBe("hace 2 min");
+		expect(formatRelativeTime(nowSeconds - 7200)).toBe("hace 2 h");
+		expect(formatRelativeTime(nowSeconds - 86400 * 3)).toBe("hace 3 d");
+	});
+
+	it("getRecentCommits debería invocar git log con los argumentos correctos y devolver commits", async () => {
+		mockCalls.length = 0;
+		const commits = await getRecentCommits("/fake/path", undefined, 5);
+		expect(commits).toHaveLength(2);
+		expect(commits[0].hash).toBe("46fad05");
+		expect(commits[0].message).toBe("first commit");
+
+		const logCmd = mockCalls.find((c) => c[0] === "log");
+		expect(logCmd).toBeDefined();
+		expect(logCmd).toContain("-n5");
 	});
 });

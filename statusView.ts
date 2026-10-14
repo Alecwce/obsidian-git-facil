@@ -5,12 +5,15 @@ import {
 	getCommitMessage,
 	getCurrentBranch,
 	getGitStatusResult,
+	getRecentCommits,
 	pullGitChanges,
+	type RecentCommit,
 } from "./gitHelper";
 import { t } from "./i18n";
 import type GitFacilPlugin from "./main";
 import {
 	mobileCommitAndPushSelectedFiles,
+	mobileGetRecentCommits,
 	mobileGetStatus,
 	mobilePull,
 } from "./mobileGit";
@@ -163,85 +166,149 @@ export class GitStatusView extends ItemView {
 			emptyState.createEl("p", {
 				text: t("statusPanelCleanDesc"),
 			});
+		} else {
+			this.selectedFiles = new Set(changedFiles.map((f) => f.path));
+
+			const btnCommitSelected = containerEl.createEl("button", {
+				text: t("statusPanelCommitSelectedBtn"),
+				cls: "mod-cta status-commit-btn",
+			});
+			btnCommitSelected.addEventListener("click", () => {
+				void (async () => {
+					const filesToCommit = Array.from(this.selectedFiles);
+					if (filesToCommit.length === 0) {
+						new Notice(t("statusPanelSelectAtLeastOne"));
+						return;
+					}
+					new Notice(t("statusPanelCommittingSelected"));
+					const msg = getCommitMessage(
+						this.plugin.settings.commitMessageTemplate,
+					);
+					if (!Platform.isDesktop) {
+						const res = await mobileCommitAndPushSelectedFiles(
+							this.app,
+							filesToCommit,
+							msg,
+							this.plugin.settings.githubToken || undefined,
+						);
+						new Notice(res.message);
+					} else {
+						const basePath = getVaultBasePath(this.app);
+						if (!basePath) return;
+						const res = await commitAndPushSelectedFiles(
+							basePath,
+							filesToCommit,
+							msg,
+							this.plugin.settings.customGitPath,
+							this.plugin.settings.githubToken || undefined,
+						);
+						if (res.pushRejected) {
+							this.plugin.showAntiPanicNotice(basePath, () => {
+								void this.refreshView();
+							});
+						} else {
+							new Notice(res.message);
+						}
+					}
+					await this.refreshView();
+					void this.plugin.refreshGitStatus();
+				})();
+			});
+
+			const fileListContainer = containerEl.createDiv({
+				cls: "status-file-list",
+			});
+
+			for (const file of changedFiles) {
+				const fileRow = fileListContainer.createDiv({ cls: "status-file-row" });
+
+				const checkbox = fileRow.createEl("input", {
+					type: "checkbox",
+				});
+				checkbox.checked = this.selectedFiles.has(file.path);
+				checkbox.addEventListener("change", () => {
+					if (checkbox.checked) {
+						this.selectedFiles.add(file.path);
+					} else {
+						this.selectedFiles.delete(file.path);
+					}
+				});
+
+				fileRow.createSpan({
+					text: file.status || "?",
+					cls: `status-tag status-tag-${file.status}`,
+				});
+
+				fileRow.createSpan({
+					text: file.path,
+					cls: "status-file-path",
+				});
+			}
+		}
+
+		await this.renderRecentCommits(containerEl);
+	}
+
+	private async renderRecentCommits(containerEl: HTMLElement) {
+		const recentCommitsContainer = containerEl.createDiv({
+			cls: "status-recent-commits-section",
+		});
+
+		const recentTitleRow = recentCommitsContainer.createDiv({
+			cls: "status-recent-title-row",
+		});
+		recentTitleRow.createEl("h4", {
+			text: t("statusPanelRecentCommitsTitle", { count: "5" }),
+		});
+
+		let recentCommits: RecentCommit[] = [];
+		if (!Platform.isDesktop) {
+			recentCommits = await mobileGetRecentCommits(this.app, 5);
+		} else {
+			const basePath = getVaultBasePath(this.app);
+			if (basePath) {
+				recentCommits = await getRecentCommits(
+					basePath,
+					this.plugin.settings.customGitPath,
+					5,
+				);
+			}
+		}
+
+		if (recentCommits.length === 0) {
+			const emptyRow = recentCommitsContainer.createDiv({
+				cls: "status-recent-empty",
+			});
+			emptyRow.setText(t("statusPanelNoRecentCommits"));
 			return;
 		}
 
-		this.selectedFiles = new Set(changedFiles.map((f) => f.path));
-
-		const btnCommitSelected = containerEl.createEl("button", {
-			text: t("statusPanelCommitSelectedBtn"),
-			cls: "mod-cta status-commit-btn",
-		});
-		btnCommitSelected.addEventListener("click", () => {
-			void (async () => {
-				const filesToCommit = Array.from(this.selectedFiles);
-				if (filesToCommit.length === 0) {
-					new Notice(t("statusPanelSelectAtLeastOne"));
-					return;
-				}
-				new Notice(t("statusPanelCommittingSelected"));
-				const msg = getCommitMessage(
-					this.plugin.settings.commitMessageTemplate,
-				);
-				if (!Platform.isDesktop) {
-					const res = await mobileCommitAndPushSelectedFiles(
-						this.app,
-						filesToCommit,
-						msg,
-						this.plugin.settings.githubToken || undefined,
-					);
-					new Notice(res.message);
-				} else {
-					const basePath = getVaultBasePath(this.app);
-					if (!basePath) return;
-					const res = await commitAndPushSelectedFiles(
-						basePath,
-						filesToCommit,
-						msg,
-						this.plugin.settings.customGitPath,
-						this.plugin.settings.githubToken || undefined,
-					);
-					if (res.pushRejected) {
-						this.plugin.showAntiPanicNotice(basePath, () => {
-							void this.refreshView();
-						});
-					} else {
-						new Notice(res.message);
-					}
-				}
-				await this.refreshView();
-				void this.plugin.refreshGitStatus();
-			})();
+		const commitsList = recentCommitsContainer.createDiv({
+			cls: "status-recent-commits-list",
 		});
 
-		const fileListContainer = containerEl.createDiv({
-			cls: "status-file-list",
-		});
-
-		for (const file of changedFiles) {
-			const fileRow = fileListContainer.createDiv({ cls: "status-file-row" });
-
-			const checkbox = fileRow.createEl("input", {
-				type: "checkbox",
-			});
-			checkbox.checked = this.selectedFiles.has(file.path);
-			checkbox.addEventListener("change", () => {
-				if (checkbox.checked) {
-					this.selectedFiles.add(file.path);
-				} else {
-					this.selectedFiles.delete(file.path);
-				}
+		for (const commit of recentCommits) {
+			const item = commitsList.createDiv({
+				cls: "status-recent-commit-item",
 			});
 
-			fileRow.createSpan({
-				text: file.status || "?",
-				cls: `status-tag status-tag-${file.status}`,
+			const topRow = item.createDiv({ cls: "status-commit-item-top" });
+			topRow.createSpan({
+				cls: "status-commit-hash",
+				text: commit.hash,
 			});
+			if (commit.relativeTime) {
+				topRow.createSpan({
+					cls: "status-commit-time",
+					text: commit.relativeTime,
+				});
+			}
 
-			fileRow.createSpan({
-				text: file.path,
-				cls: "status-file-path",
+			const msgRow = item.createDiv({
+				cls: "status-commit-msg",
+				text: commit.message,
 			});
+			msgRow.title = commit.message;
 		}
 	}
 }

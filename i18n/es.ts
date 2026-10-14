@@ -79,6 +79,8 @@ export const es = {
 	statusPanelErrorTitle: "❌ No se pudo leer el estado de Git",
 	statusPanelErrorDesc:
 		"Revisa que Git esté instalado y que la bóveda sea un repositorio válido.",
+	statusPanelRecentCommitsTitle: "📜 Historial reciente (últimos {count})",
+	statusPanelNoRecentCommits: "Aún no hay commits registrados en esta rama.",
 
 	// Pull Notice Results
 	pullNoNewChanges: "✅ Sin cambios nuevos",

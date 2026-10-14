@@ -77,6 +77,8 @@ export const en: Record<TranslationKeys, string> = {
 	statusPanelErrorTitle: "❌ Could not read Git status",
 	statusPanelErrorDesc:
 		"Check that Git is installed and the vault is a valid repository.",
+	statusPanelRecentCommitsTitle: "📜 Recent commits (last {count})",
+	statusPanelNoRecentCommits: "No commits recorded on this branch yet.",
 
 	// Pull Notice Results
 	pullNoNewChanges: "✅ No new changes",
