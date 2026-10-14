@@ -35,6 +35,7 @@ export const en: Record<TranslationKeys, string> = {
 
 	// Ribbon & Commands
 	ribbonCommitPush: "GitFacil",
+	ribbonPendingChanges: "GitFacil ({count} pending change{s})",
 	ribbonGitStatus: "Git Status",
 	cmdCommitPush: "Commit and Push",
 	cmdFullSync: "🔄 Full Vault Sync (Pull and Push)",

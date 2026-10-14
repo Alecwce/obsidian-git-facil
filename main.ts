@@ -54,6 +54,7 @@ export default class GitFacilPlugin extends Plugin {
 	private syncIntervalId: number | null = null;
 	private isSyncing = false;
 	private statusBarEl: HTMLElement | null = null;
+	private ribbonIconEl: HTMLElement | null = null;
 	private statusDebounceTimer: number | null = null;
 
 	override async onload() {
@@ -63,7 +64,11 @@ export default class GitFacilPlugin extends Plugin {
 			await this.handleCommitAndPush();
 		};
 
-		this.addRibbonIcon("rocket", t("ribbonCommitPush"), executeCommitAndPush);
+		this.ribbonIconEl = this.addRibbonIcon(
+			"rocket",
+			t("ribbonCommitPush"),
+			executeCommitAndPush,
+		);
 
 		this.registerView(
 			GIT_STATUS_VIEW_TYPE,
@@ -138,6 +143,18 @@ export default class GitFacilPlugin extends Plugin {
 		this.registerEvent(this.app.vault.on("delete", onVaultChange));
 		this.registerEvent(this.app.vault.on("rename", onVaultChange));
 
+		// Sincronización inteligente al volver a la app (resume en móvil y enfoque en escritorio)
+		this.registerDomEvent(document, "visibilitychange", () => {
+			if (document.visibilityState === "visible") {
+				this.triggerDebouncedStatusCheck();
+				if (this.settings.syncOnStartup && !this.isSyncing) {
+					window.setTimeout(() => {
+						void this.handleStartupSync();
+					}, 2500);
+				}
+			}
+		});
+
 		if (this.settings.syncOnStartup) {
 			window.setTimeout(() => {
 				void this.handleStartupSync();
@@ -150,6 +167,17 @@ export default class GitFacilPlugin extends Plugin {
 	}
 
 	updateStatusBar(status: "idle" | "syncing" | "dirty" | "error", count = 0) {
+		if (this.ribbonIconEl) {
+			if (status === "dirty" && count > 0) {
+				this.ribbonIconEl.setAttribute(
+					"aria-label",
+					t("ribbonPendingChanges", { count, s: count > 1 ? "s" : "" }),
+				);
+			} else {
+				this.ribbonIconEl.setAttribute("aria-label", t("ribbonCommitPush"));
+			}
+		}
+
 		if (!this.statusBarEl) return;
 		this.statusBarEl.removeClass(
 			"status-idle",

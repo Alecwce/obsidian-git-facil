@@ -35,6 +35,7 @@ export const es = {
 
 	// Ribbon & Commands
 	ribbonCommitPush: "GitFacil",
+	ribbonPendingChanges: "GitFacil ({count} cambio{s} pendiente{s})",
 	ribbonGitStatus: "Estado de Git",
 	cmdCommitPush: "Commit y Push",
 	cmdFullSync: "🔄 Sincronizar Bóveda Completa (Bajar cambios y Subir)",
