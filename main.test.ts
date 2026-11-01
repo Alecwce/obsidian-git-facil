@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import {
 	checkRemoteAuth,
 	commitAndPushSelectedFiles,
+	detectHeavyFiles,
+	discardFileChanges,
 	formatGitErrorMessage,
 	fullSyncVault,
 	getAheadBehind,
@@ -13,6 +15,8 @@ import {
 	getGitStatusResult,
 	getGitVersion,
 	getRecentCommits,
+	getSanitizedDiagnosticReport,
+	getSmartCommitMessage,
 	hasOriginRemote,
 	hasStagedChanges,
 	hasUncommittedChanges,
@@ -836,5 +840,96 @@ describe("Historial de Commits Recientes", () => {
 		const logCmd = mockCalls.find((c) => c[0] === "log");
 		expect(logCmd).toBeDefined();
 		expect(logCmd).toContain("-n5");
+	});
+});
+
+describe("Mensajes Inteligentes de Commit (Smart Commit)", () => {
+	it("debería sugerir nombre simple de nota si se modifica 1 archivo", () => {
+		const msg = getSmartCommitMessage(["Artificial Analysis.md"]);
+		expect(msg).toBe("📝 nota: Artificial Analysis");
+	});
+
+	it("debería listar nombres si se modifican 2 o 3 archivos", () => {
+		const msg = getSmartCommitMessage([
+			"03_Conocimiento/Artificial Analysis.md",
+			"OpenCode.md",
+		]);
+		expect(msg).toBe("📝 notas: Artificial Analysis, OpenCode");
+	});
+
+	it("debería resumir con contador si se modifican más de 3 archivos", () => {
+		const msg = getSmartCommitMessage([
+			"Nota1.md",
+			"Nota2.md",
+			"Nota3.md",
+			"Nota4.md",
+		]);
+		expect(msg).toBe("📝 4 notas (Nota1, Nota2 y +2)");
+	});
+
+	it("debería respetar plantilla personalizada si el usuario configuró una", () => {
+		const msg = getSmartCommitMessage(
+			["Nota1.md"],
+			"backup personal {fecha}",
+			new Date(2026, 9, 30, 12, 0),
+		);
+		expect(msg).toBe("backup personal 2026-10-30 12:00");
+	});
+});
+
+describe("Descarte de Cambios y Bloqueo de Archivos Pesados", () => {
+	it("discardFileChanges debería invocar git checkout HEAD -- para archivos modificados", async () => {
+		mockCalls.length = 0;
+		const res = await discardFileChanges("/fake/path", "nota.md", "M");
+		expect(res.success).toBe(true);
+
+		const checkoutCmd = mockCalls.find((c) => c[0] === "checkout");
+		expect(checkoutCmd).toBeDefined();
+		expect(checkoutCmd).toEqual(["checkout", "HEAD", "--", "nota.md"]);
+	});
+
+	it("discardFileChanges debería invocar git clean -f -- para archivos no rastreados", async () => {
+		mockCalls.length = 0;
+		const res = await discardFileChanges("/fake/path", "nuevo.md", "?");
+		expect(res.success).toBe(true);
+
+		const cleanCmd = mockCalls.find((c) => c[0] === "clean");
+		expect(cleanCmd).toBeDefined();
+		expect(cleanCmd).toEqual(["clean", "-f", "--", "nuevo.md"]);
+	});
+
+	it("detectHeavyFiles debería detectar archivos que superan el umbral", async () => {
+		const mockApp = {
+			vault: {
+				adapter: {
+					stat: vi.fn(async (path: string) => {
+						if (path === "video.mp4") {
+							return { size: 60 * 1024 * 1024 }; // 60MB
+						}
+						return { size: 1024 }; // 1KB
+					}),
+				},
+			},
+		};
+
+		const heavy = await detectHeavyFiles(
+			mockApp as unknown as import("obsidian").App,
+			["video.mp4", "nota.md"],
+		);
+		expect(heavy).toHaveLength(1);
+		expect(heavy[0].path).toBe("video.mp4");
+		expect(heavy[0].sizeMB).toBe("60.0");
+	});
+});
+
+describe("Diagnóstico Seguro y Ley 29733 / RGPD", () => {
+	it("getSanitizedDiagnosticReport debería redactar errores y declarar cumplimiento de privacidad", () => {
+		const report = getSanitizedDiagnosticReport(
+			"1.8.16",
+			"Error token ghp_secret1234567890",
+		);
+		expect(report).toContain("Plugin Version:** 1.8.16");
+		expect(report).toContain("Ley N° 29733");
+		expect(report).not.toContain("ghp_secret1234567890");
 	});
 });

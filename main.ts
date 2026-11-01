@@ -1,6 +1,7 @@
 import "./polyfill";
 import { Notice, Platform, Plugin, type WorkspaceLeaf } from "obsidian";
 import { CloneVaultModal } from "./cloneModal";
+import { DiagnosticModal } from "./diagnosticModal";
 import {
 	checkGitStatusPorcelain,
 	fullSyncVault,
@@ -51,6 +52,7 @@ export const DEFAULT_SETTINGS: GitFacilSettings = {
 
 export default class GitFacilPlugin extends Plugin {
 	settings: GitFacilSettings = DEFAULT_SETTINGS;
+	public lastError: string | null = null;
 	private syncIntervalId: number | null = null;
 	private isSyncing = false;
 	private statusBarEl: HTMLElement | null = null;
@@ -107,6 +109,14 @@ export default class GitFacilPlugin extends Plugin {
 			callback: () => {
 				const basePath = getVaultBasePath(this.app);
 				new SetupWizardModal(this.app, this, basePath).open();
+			},
+		});
+
+		this.addCommand({
+			id: "open-system-diagnostics",
+			name: t("diagnosticModalTitle"),
+			callback: () => {
+				new DiagnosticModal(this.app, this).open();
 			},
 		});
 

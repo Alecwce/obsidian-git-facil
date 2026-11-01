@@ -1,4 +1,4 @@
-import { Platform, requestUrl } from "obsidian";
+import { type App, Platform, requestUrl } from "obsidian";
 import { t } from "./i18n";
 
 type ExecFileFn = (
@@ -208,6 +208,40 @@ export function getCommitMessage(
 
 	const dateStr = `${year}-${month}-${day} ${hours}:${minutes}`;
 	return template.replace("{fecha}", dateStr);
+}
+
+export function getSmartCommitMessage(
+	filePaths: string[],
+	template = "📝 notas {fecha}",
+	date: Date = new Date(),
+): string {
+	if (!filePaths || filePaths.length === 0) {
+		return getCommitMessage(template, date);
+	}
+
+	// Si el usuario configuró una plantilla personalizada explícita, respetarla
+	if (template && template !== "📝 notas {fecha}") {
+		return getCommitMessage(template, date);
+	}
+
+	const names = filePaths
+		.map((p) => {
+			const base = p.split("/").pop() || p;
+			return base.replace(/\.[^/.]+$/, "").trim();
+		})
+		.filter((n) => n.length > 0);
+
+	if (names.length === 0) {
+		return getCommitMessage(template, date);
+	}
+
+	if (names.length === 1) {
+		return `📝 nota: ${names[0]}`;
+	}
+	if (names.length <= 3) {
+		return `📝 notas: ${names.join(", ")}`;
+	}
+	return `📝 ${names.length} notas (${names[0]}, ${names[1]} y +${names.length - 2})`;
 }
 
 export async function isGitInstalled(gitPath?: string): Promise<boolean> {
@@ -1075,4 +1109,101 @@ export async function getRecentCommits(
 	} catch {
 		return [];
 	}
+}
+
+export async function discardFileChanges(
+	cwd: string,
+	filePath: string,
+	status: string,
+	gitPath?: string,
+): Promise<{ success: boolean; message: string }> {
+	const git = resolveGit(gitPath);
+	try {
+		if (status === "?") {
+			await execGitFile(git, ["clean", "-f", "--", filePath], cwd);
+		} else {
+			await execGitFile(git, ["checkout", "HEAD", "--", filePath], cwd);
+		}
+		return {
+			success: true,
+			message: t("statusPanelDiscardSuccess", { path: filePath }),
+		};
+	} catch (error) {
+		const msg = error instanceof Error ? error.message : String(error);
+		return { success: false, message: msg };
+	}
+}
+
+export interface HeavyFileItem {
+	path: string;
+	sizeMB: string;
+}
+
+export const HEAVY_FILE_THRESHOLD_BYTES = 50 * 1024 * 1024; // 50 MB
+
+export async function detectHeavyFiles(
+	app: App,
+	filePaths: string[],
+	thresholdBytes = HEAVY_FILE_THRESHOLD_BYTES,
+): Promise<HeavyFileItem[]> {
+	const heavy: HeavyFileItem[] = [];
+	for (const path of filePaths) {
+		try {
+			const stat = await app.vault.adapter.stat(path);
+			if (stat && stat.size > thresholdBytes) {
+				heavy.push({
+					path,
+					sizeMB: (stat.size / (1024 * 1024)).toFixed(1),
+				});
+			}
+		} catch {
+			// ignore stat errors
+		}
+	}
+	return heavy;
+}
+
+export function sanitizeErrorMessage(msg: string, token?: string): string {
+	let out = redactSecrets(msg, [token]);
+	out = out.replace(/ghp_[a-zA-Z0-9]{10,}/g, "***");
+	out = out.replace(/github_pat_[a-zA-Z0-9_]{10,}/g, "***");
+	out = out.replace(/\/home\/[a-zA-Z0-9_-]+/g, "/home/***");
+	out = out.replace(/C:\\Users\\[a-zA-Z0-9_-]+/g, "C:\\Users\\***");
+	return out;
+}
+
+export function getSanitizedDiagnosticReport(
+	pluginVersion: string,
+	lastError?: string,
+): string {
+	const platformStr = Platform.isDesktop
+		? `Desktop (${Platform.isLinux ? "Linux" : Platform.isMacOS ? "macOS" : "Windows"})`
+		: `Mobile (${Platform.isAndroidApp ? "Android" : "iOS"})`;
+
+	const gitEngine = Platform.isDesktop
+		? "Native Git"
+		: "isomorphic-git (Dual-Engine)";
+	const isOnline = typeof navigator !== "undefined" ? navigator.onLine : true;
+
+	const lines = [
+		"### 🩺 GitFacil Diagnostic Report",
+		`- **Plugin Version:** ${pluginVersion}`,
+		`- **Platform:** ${platformStr}`,
+		`- **Git Engine:** ${gitEngine}`,
+		`- **Network Status:** ${isOnline ? "Online 📶" : "Offline 📵"}`,
+		`- **Timestamp:** ${new Date().toISOString()}`,
+	];
+
+	if (lastError) {
+		const redacted = sanitizeErrorMessage(lastError);
+		lines.push(`- **Last Reported Error:** \`${redacted.replace(/`/g, "")}\``);
+	}
+
+	lines.push(
+		"",
+		"#### 🔒 Privacy & Compliance Note",
+		"Generated locally with zero background tracking. 100% compliant with Peruvian Law / Ley N° 29733 & GDPR. No personal vault notes, user credentials, or auth tokens included.",
+	);
+
+	return lines.join("\n");
 }

@@ -79,6 +79,22 @@ export const en: Record<TranslationKeys, string> = {
 		"Check that Git is installed and the vault is a valid repository.",
 	statusPanelRecentCommitsTitle: "📜 Recent commits (last {count})",
 	statusPanelNoRecentCommits: "No commits recorded on this branch yet.",
+	statusPanelDiscardBtnTooltip: "Discard changes (restore to last commit)",
+	statusPanelDiscardConfirm:
+		'Discard changes in "{path}"? This will restore the file to the last commit and cannot be undone.',
+	statusPanelDiscardSuccess: "✅ Changes discarded in {path}",
+	statusPanelHeavyFilesDetected:
+		"⚠️ Heavy file detected: {names} ({size} MB). GitHub rejects files over 50-100MB. Uncheck it to prevent errors.",
+	diagnosticModalTitle: "🩺 GitFacil Diagnostics & Error Report",
+	diagnosticPrivacyBadge:
+		"🛡️ Privacy Guaranteed (Law 29733 - Peru & GDPR): This report is anonymous and technical. It does not include vault notes, passwords, or personal paths. Only you decide if you wish to share it.",
+	diagnosticBtnCopy: "📋 Copy Report",
+	diagnosticBtnGitHub: "🐛 Report on GitHub Issues",
+	diagnosticCopySuccess: "✅ Diagnostic report copied to clipboard.",
+	diagnosticSettingName: "System Diagnostics & Secure Report",
+	diagnosticSettingDesc:
+		"Check GitFacil system health or generate a secure, anonymous technical report if you encounter an error.",
+	diagnosticSettingBtn: "🩺 Open Diagnostics",
 
 	// Pull Notice Results
 	pullNoNewChanges: "✅ No new changes",

@@ -175,6 +175,32 @@
 .git-facil-status-view .status-file-path {
 	font-size: 0.9em;
 	word-break: break-all;
+	flex: 1;
+}
+
+.git-facil-status-view .status-file-discard-btn {
+	background: none;
+	border: none;
+	cursor: pointer;
+	color: var(--text-muted);
+	font-size: 0.85em;
+	padding: 2px 6px;
+	border-radius: 3px;
+	transition:
+		background-color 0.15s ease,
+		color 0.15s ease;
+}
+
+.git-facil-status-view .status-file-discard-btn:hover {
+	background-color: var(
+		--background-modifier-error-hover,
+		rgba(255, 0, 0, 0.15)
+	);
+	color: var(--text-error);
+}
+
+.git-facil-status-view .status-diag-btn {
+	margin-top: 12px;
 }
 
 /* Historial de Commits Recientes */
@@ -255,4 +281,36 @@
 .notice-sync-btn {
 	margin-top: 8px;
 	width: 100%;
+}
+
+/* Modal de Diagnóstico */
+.git-facil-diagnostic-modal .diagnostic-privacy-badge {
+	background-color: var(--background-secondary);
+	border-left: 3px solid var(--interactive-accent);
+	padding: 8px 12px;
+	border-radius: 4px;
+	font-size: 0.85em;
+	color: var(--text-muted);
+	margin-bottom: 12px;
+	line-height: 1.4;
+}
+
+.git-facil-diagnostic-modal .diagnostic-pre {
+	background-color: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	padding: 10px;
+	border-radius: 4px;
+	font-family: var(--font-monospace);
+	font-size: 0.85em;
+	max-height: 220px;
+	overflow-y: auto;
+	white-space: pre-wrap;
+	word-break: break-all;
+	margin-bottom: 14px;
+}
+
+.git-facil-diagnostic-modal .diagnostic-actions {
+	display: flex;
+	gap: 10px;
+	justify-content: flex-end;
 }

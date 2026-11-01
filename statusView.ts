@@ -1,11 +1,14 @@
 import { ItemView, Notice, Platform, type WorkspaceLeaf } from "obsidian";
+import { DiagnosticModal } from "./diagnosticModal";
 import {
 	commitAndPushSelectedFiles,
+	detectHeavyFiles,
+	discardFileChanges,
 	getAheadBehind,
-	getCommitMessage,
 	getCurrentBranch,
 	getGitStatusResult,
 	getRecentCommits,
+	getSmartCommitMessage,
 	pullGitChanges,
 	type RecentCommit,
 } from "./gitHelper";
@@ -13,6 +16,7 @@ import { t } from "./i18n";
 import type GitFacilPlugin from "./main";
 import {
 	mobileCommitAndPushSelectedFiles,
+	mobileDiscardFile,
 	mobileGetRecentCommits,
 	mobileGetStatus,
 	mobilePull,
@@ -130,10 +134,19 @@ export class GitStatusView extends ItemView {
 		if (!Platform.isDesktop) {
 			const mobileStatus = await mobileGetStatus(this.app);
 			if (!mobileStatus.ok) {
+				this.plugin.lastError =
+					mobileStatus.error || "Error al leer estado móvil";
 				const errBox = containerEl.createDiv({ cls: "status-empty-state" });
 				errBox.createEl("h2", { text: t("statusPanelErrorTitle") });
 				errBox.createEl("p", {
 					text: mobileStatus.error || t("statusPanelErrorDesc"),
+				});
+				const btnDiag = errBox.createEl("button", {
+					text: t("diagnosticSettingBtn"),
+					cls: "mod-cta status-diag-btn",
+				});
+				btnDiag.addEventListener("click", () => {
+					new DiagnosticModal(this.app, this.plugin).open();
 				});
 				return;
 			}
@@ -152,9 +165,17 @@ export class GitStatusView extends ItemView {
 			const status = await getGitStatusResult(basePath, gitPath);
 
 			if (!status.ok) {
+				this.plugin.lastError = status.error || "Error al leer estado nativo";
 				const errBox = containerEl.createDiv({ cls: "status-empty-state" });
 				errBox.createEl("h2", { text: t("statusPanelErrorTitle") });
 				errBox.createEl("p", { text: t("statusPanelErrorDesc") });
+				const btnDiag = errBox.createEl("button", {
+					text: t("diagnosticSettingBtn"),
+					cls: "mod-cta status-diag-btn",
+				});
+				btnDiag.addEventListener("click", () => {
+					new DiagnosticModal(this.app, this.plugin).open();
+				});
 				return;
 			}
 			changedFiles = status.files;
@@ -180,8 +201,22 @@ export class GitStatusView extends ItemView {
 						new Notice(t("statusPanelSelectAtLeastOne"));
 						return;
 					}
+
+					const heavy = await detectHeavyFiles(this.app, filesToCommit);
+					if (heavy.length > 0) {
+						new Notice(
+							t("statusPanelHeavyFilesDetected", {
+								names: heavy.map((h) => h.path).join(", "),
+								size: heavy[0]?.sizeMB || "50",
+							}),
+							8000,
+						);
+						return;
+					}
+
 					new Notice(t("statusPanelCommittingSelected"));
-					const msg = getCommitMessage(
+					const msg = getSmartCommitMessage(
+						filesToCommit,
 						this.plugin.settings.commitMessageTemplate,
 					);
 					if (!Platform.isDesktop) {
@@ -192,6 +227,9 @@ export class GitStatusView extends ItemView {
 							this.plugin.settings.githubToken || undefined,
 						);
 						new Notice(res.message);
+						if (!res.success) {
+							this.plugin.lastError = res.message;
+						}
 					} else {
 						const basePath = getVaultBasePath(this.app);
 						if (!basePath) return;
@@ -203,11 +241,15 @@ export class GitStatusView extends ItemView {
 							this.plugin.settings.githubToken || undefined,
 						);
 						if (res.pushRejected) {
+							this.plugin.lastError = "Push rejected by remote";
 							this.plugin.showAntiPanicNotice(basePath, () => {
 								void this.refreshView();
 							});
 						} else {
 							new Notice(res.message);
+							if (!res.success) {
+								this.plugin.lastError = res.message;
+							}
 						}
 					}
 					await this.refreshView();
@@ -242,6 +284,53 @@ export class GitStatusView extends ItemView {
 				fileRow.createSpan({
 					text: file.path,
 					cls: "status-file-path",
+				});
+
+				const btnDiscard = fileRow.createEl("button", {
+					cls: "status-file-discard-btn",
+					text: "✕",
+				});
+				btnDiscard.title = t("statusPanelDiscardBtnTooltip");
+				btnDiscard.addEventListener("click", (e) => {
+					e.stopPropagation();
+					void (async () => {
+						const confirmed = window.confirm(
+							t("statusPanelDiscardConfirm", { path: file.path }),
+						);
+						if (!confirmed) return;
+
+						if (!Platform.isDesktop) {
+							const res = await mobileDiscardFile(
+								this.app,
+								file.path,
+								file.status,
+							);
+							new Notice(res.message);
+						} else {
+							const basePath = getVaultBasePath(this.app);
+							if (!basePath) return;
+							if (file.status === "?") {
+								try {
+									await this.app.vault.adapter.remove(file.path);
+									new Notice(
+										t("statusPanelDiscardSuccess", { path: file.path }),
+									);
+								} catch (err) {
+									new Notice(`❌ ${String(err)}`);
+								}
+							} else {
+								const res = await discardFileChanges(
+									basePath,
+									file.path,
+									file.status,
+									this.plugin.settings.customGitPath,
+								);
+								new Notice(res.message);
+							}
+						}
+						await this.refreshView();
+						void this.plugin.refreshGitStatus();
+					})();
 				});
 			}
 		}

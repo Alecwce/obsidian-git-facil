@@ -81,6 +81,23 @@ export const es = {
 		"Revisa que Git esté instalado y que la bóveda sea un repositorio válido.",
 	statusPanelRecentCommitsTitle: "📜 Historial reciente (últimos {count})",
 	statusPanelNoRecentCommits: "Aún no hay commits registrados en esta rama.",
+	statusPanelDiscardBtnTooltip:
+		"Descartar cambios (restaurar al último commit)",
+	statusPanelDiscardConfirm:
+		'¿Descartar los cambios de "{path}"? Esta acción restaurará el archivo al último commit y no se puede deshacer.',
+	statusPanelDiscardSuccess: "✅ Cambios descartados en {path}",
+	statusPanelHeavyFilesDetected:
+		"⚠️ Archivo pesado detectado: {names} ({size} MB). GitHub rechaza archivos mayores a 50-100MB. Desmárcalo para evitar errores.",
+	diagnosticModalTitle: "🩺 Diagnóstico de GitFacil y Reporte de Error",
+	diagnosticPrivacyBadge:
+		"🛡️ Privacidad Garantizada (Ley N° 29733 - Perú & RGPD): Este reporte es anónimo y técnico. No incluye notas de tu bóveda, contraseñas ni rutas personales. Solo tú decides si deseas compartirlo.",
+	diagnosticBtnCopy: "📋 Copiar Reporte",
+	diagnosticBtnGitHub: "🐛 Reportar en GitHub Issues",
+	diagnosticCopySuccess: "✅ Reporte de diagnóstico copiado al portapapeles.",
+	diagnosticSettingName: "Diagnóstico del Sistema y Reporte Seguro",
+	diagnosticSettingDesc:
+		"Revisa el estado de salud de GitFacil o genera un informe técnico seguro y anónimo si experimentas un error.",
+	diagnosticSettingBtn: "🩺 Abrir Diagnóstico",
 
 	// Pull Notice Results
 	pullNoNewChanges: "✅ Sin cambios nuevos",

@@ -7,6 +7,7 @@ import {
 	type SettingDefinitionItem,
 } from "obsidian";
 import { CloneVaultModal } from "./cloneModal";
+import { DiagnosticModal } from "./diagnosticModal";
 import { t } from "./i18n";
 import type GitFacilPlugin from "./main";
 import { DEFAULT_SETTINGS } from "./main";
@@ -192,6 +193,13 @@ export class GitFacilSettingTab extends PluginSettingTab {
 					key: "customGitPath",
 					defaultValue: DEFAULT_SETTINGS.customGitPath,
 					placeholder: t("customGitPathPlaceholder"),
+				},
+			},
+			{
+				name: t("diagnosticSettingName"),
+				desc: t("diagnosticSettingDesc"),
+				action: () => {
+					new DiagnosticModal(this.app, this.plugin).open();
 				},
 			},
 		];

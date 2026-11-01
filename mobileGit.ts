@@ -679,3 +679,41 @@ export async function mobileGetRecentCommits(
 		return [];
 	}
 }
+
+export async function mobileDiscardFile(
+	app: App,
+	filePath: string,
+	status: string,
+): Promise<MobileGitResult> {
+	try {
+		if (status === "?") {
+			const exists = await app.vault.adapter.exists(filePath);
+			if (exists) {
+				await app.vault.adapter.remove(filePath);
+			}
+			return {
+				success: true,
+				message: t("statusPanelDiscardSuccess", { path: filePath }),
+			};
+		}
+
+		const fs = new ObsidianIsomorphicFsAdapter(app.vault.adapter);
+		await git.checkout({
+			fs,
+			dir: "",
+			filepaths: [filePath],
+			force: true,
+		});
+
+		return {
+			success: true,
+			message: t("statusPanelDiscardSuccess", { path: filePath }),
+		};
+	} catch (error) {
+		const msg = error instanceof Error ? error.message : String(error);
+		return {
+			success: false,
+			message: `❌ Error al descartar cambios: ${msg}`,
+		};
+	}
+}
